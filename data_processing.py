@@ -23,24 +23,10 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
+import argparse
 
 
 
-# set path to datasets
-PATHCWD = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\VESSELS\\datasets'
-PATH_CHASEDB1 = os.path.join(PATHCWD, 'CHASEDB1')
-PATH_DRIVE = os.path.join(PATHCWD, 'DRIVE')
-PATH_STARE = os.path.join(PATHCWD, 'STARE', 'vessels')
-
-
-
-""" Images functions """
-
-# Where to save the figures
-PROJECT_ROOT_DIR = "."
-CHAPTER_ID = "saved_images"
-IMAGES_PATH = os.path.join(PATHCWD,  CHAPTER_ID)
-os.makedirs(IMAGES_PATH, exist_ok=True)
 
 def save_fig(fig_id, tight_layout=True, fig_extension="png", resolution=300):
     # save images from matplotlib
@@ -111,108 +97,166 @@ def get_files(path, endswith=".jpg"):
     
     return files_original, images_stack, images_folders
     print(len(images_stack))
-
-
-
-
-
-""" 
-
-CHASEDB1 DATASASET  --- all images in single folder
-
-""" 
-paths, names, _ = get_files(PATH_CHASEDB1)
-
-##### important model, here the df is created
-df_chase = pd.DataFrame({ 
-                  'NAME':[name[:-4] for name in names] ,
-                  'DATASET_NAME': ['CHASEDB1']*len(names),
-                  'PATH_TO_ORIGINAL_IMAGE': paths
-                  })
-
-# because there are two mask for every image, df is doubled
-df_chase = pd.DataFrame(np.repeat(df_chase.values, 2, axis=0), columns=df_chase.columns)
-
-# get masks, in .png
-paths, names, _ = get_files(PATH_CHASEDB1, endswith=".png")
-df_chase['MASK'] = paths
-
-df = df_chase
-
-#for i in range(10):
-#    plot_fig(df.iloc[i,2])
-
-plot_orig_mask(df, df.NAME.iloc[10])
-
-
-""" 
-
-CHASEDB1 DRIVE  --- all images in single folder
-https://www.kaggle.com/datasets/andrewmvd/drive-digital-retinal-images-for-vessel-extraction
-""" 
-paths, names, _ = get_files(os.path.join(PATH_DRIVE,'training'), endswith=".tif")
-
-df_drive = pd.DataFrame({ 
-                  'NAME':[name[:-4] for name in names] ,
-                  'DATASET_NAME': ['DRIVE']*len(names),
-                  'PATH_TO_ORIGINAL_IMAGE': paths
-                  })
-
-paths, names, _ = get_files(os.path.join(PATH_DRIVE,'training','1st_manual'), endswith=".gif")
-df_drive['MASK'] = paths
-
-
-# concatenate
-df = pd.concat([df, df_drive])
-df_drive
-# plot_fig(df.iloc[70,3]), problem to read .gif
-plot_orig_mask(df, df.NAME.iloc[70])
-
-
-""" 
-
-CHASEDB1 STARE  --- .ppm images
-
-""" 
-
-paths, names, _ = get_files(os.path.join(PATH_STARE,'stare-images'), endswith=".ppm")
-
-# for path in paths[:20]:
-#     img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-#     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-#     plt.figure()
-#     plt.imshow(img)
-#     plt.show()
     
-df_stare1 = pd.DataFrame({ 
-                  'NAME':[name[:-4] for name in names] ,
-                  'DATASET_NAME': ['STARE']*len(names),
-                  'PATH_TO_ORIGINAL_IMAGE': paths
-                  })
+ 
+# print the path to dataset
+class VerboseStoreDataset(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError('nargs not allowed')
+        super(VerboseStoreDataset, self).__init__(option_strings, dest, **kwargs)
 
-paths, names, _ = get_files(os.path.join(PATH_STARE,'labels-ah'), endswith=".ppm")
-df_stare1['MASK'] = paths
+    def __call__(self, parser, namespace, values, option_string=None):
+        print('Dataset saving, name %r defined by user' % (values))
+        setattr(namespace, self.dest, values)    
+    
 
-paths, names, _ = get_files(os.path.join(PATH_STARE,'stare-images'), endswith=".ppm")
-df_stare2 = pd.DataFrame({ 
-                  'NAME':[name[:-4] for name in names] ,
-                  'DATASET_NAME': ['STARE']*len(names),
-                  'PATH_TO_ORIGINAL_IMAGE': paths
-                  })
 
-paths, names, _ = get_files(os.path.join(PATH_STARE,'labels-vk'), endswith=".ppm")
-df_stare2['MASK'] = paths
+#################################3 
+if __name__ == "__main__":
+    
+    prog_desc = "Load data from datasets folder \n and creates csv with path to image and label"
 
-df_stare = pd.concat([df_stare1,df_stare2])
+    parser = argparse.ArgumentParser(description = prog_desc)
+    parser.version = '1.1'
+    # Add the arguments
+    parser.add_argument('--path',
+                        #metavar='path',
+                        action='store',
+                        type=str,
+                        default=os.getcwd(),
+                        help='the path to dataset, datased included. Default=current dir',
+                        required=False)
+    
+    parser.add_argument('-s',
+                       '--save',
+                       action='store_true',
+                       help='store the dataset in data_paths.csv')
+    
+    parser.add_argument('-c',
+                        '--csv',
+                        type=str,
+                        action=VerboseStoreDataset,
+                        help='store dataset in user defined *name*.csv ')
+    
+    args = parser.parse_args()
+    
+    
+    # set path to datasets
+    #PATHCWD = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\VESSELS\\datasets'
+    PATHCWD = os.path.join(args.path,'datasets')
+    PATH_CHASEDB1 = os.path.join(PATHCWD, 'CHASEDB1')
+    PATH_DRIVE = os.path.join(PATHCWD, 'DRIVE')
+    PATH_STARE = os.path.join(PATHCWD, 'STARE', 'vessels')
 
-del df_stare1 
-del df_stare2
-df = pd.concat([df, df_stare])
+    """ Images functions """
 
-plot_orig_mask(df, df.NAME.iloc[110])
-
-print(df.DATASET_NAME.value_counts())
-
-# save paths
-#df.reset_index().to_csv('data_paths.csv', index=False)
-
+    # Where to save the figures
+    PROJECT_ROOT_DIR = "."
+    CHAPTER_ID = "saved_images"
+    IMAGES_PATH = os.path.join(PATHCWD,  CHAPTER_ID)
+    os.makedirs(IMAGES_PATH, exist_ok=True)
+    
+    """ 
+    
+    CHASEDB1 DATASASET  --- all images in single folder
+    
+    """ 
+    paths, names, _ = get_files(PATH_CHASEDB1)
+    
+    ##### important model, here the df is created
+    df_chase = pd.DataFrame({ 
+                      'NAME':[name[:-4] for name in names] ,
+                      'DATASET_NAME': ['CHASEDB1']*len(names),
+                      'PATH_TO_ORIGINAL_IMAGE': paths
+                      })
+    
+    # because there are two mask for every image, df is doubled
+    df_chase = pd.DataFrame(np.repeat(df_chase.values, 2, axis=0), columns=df_chase.columns)
+    
+    # get masks, in .png
+    paths, names, _ = get_files(PATH_CHASEDB1, endswith=".png")
+    df_chase['MASK'] = paths
+    
+    df = df_chase
+    
+    #for i in range(10):
+    #    plot_fig(df.iloc[i,2])
+    
+    plot_orig_mask(df, df.NAME.iloc[10])
+    
+    
+    """ 
+    
+    CHASEDB1 DRIVE  --- all images in single folder
+    https://www.kaggle.com/datasets/andrewmvd/drive-digital-retinal-images-for-vessel-extraction
+    """ 
+    paths, names, _ = get_files(os.path.join(PATH_DRIVE,'training'), endswith=".tif")
+    
+    df_drive = pd.DataFrame({ 
+                      'NAME':[name[:-4] for name in names] ,
+                      'DATASET_NAME': ['DRIVE']*len(names),
+                      'PATH_TO_ORIGINAL_IMAGE': paths
+                      })
+    
+    paths, names, _ = get_files(os.path.join(PATH_DRIVE,'training','1st_manual'), endswith=".gif")
+    df_drive['MASK'] = paths
+    
+    
+    # concatenate
+    df = pd.concat([df, df_drive])
+    df_drive
+    # plot_fig(df.iloc[70,3]), problem to read .gif
+    plot_orig_mask(df, df.NAME.iloc[70])
+    
+    
+    """ 
+    
+    CHASEDB1 STARE  --- .ppm images
+    
+    """ 
+    
+    paths, names, _ = get_files(os.path.join(PATH_STARE,'stare-images'), endswith=".ppm")
+    
+    # for path in paths[:20]:
+    #     img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+    #     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    #     plt.figure()
+    #     plt.imshow(img)
+    #     plt.show()
+        
+    df_stare1 = pd.DataFrame({ 
+                      'NAME':[name[:-4] for name in names] ,
+                      'DATASET_NAME': ['STARE']*len(names),
+                      'PATH_TO_ORIGINAL_IMAGE': paths
+                      })
+    
+    paths, names, _ = get_files(os.path.join(PATH_STARE,'labels-ah'), endswith=".ppm")
+    df_stare1['MASK'] = paths
+    
+    paths, names, _ = get_files(os.path.join(PATH_STARE,'stare-images'), endswith=".ppm")
+    df_stare2 = pd.DataFrame({ 
+                      'NAME':[name[:-4] for name in names] ,
+                      'DATASET_NAME': ['STARE']*len(names),
+                      'PATH_TO_ORIGINAL_IMAGE': paths
+                      })
+    
+    paths, names, _ = get_files(os.path.join(PATH_STARE,'labels-vk'), endswith=".ppm")
+    df_stare2['MASK'] = paths
+    
+    df_stare = pd.concat([df_stare1,df_stare2])
+    
+    del df_stare1 
+    del df_stare2
+    df = pd.concat([df, df_stare])
+    
+    plot_orig_mask(df, df.NAME.iloc[110])
+    
+    print(df.DATASET_NAME.value_counts())
+    
+    # save paths
+    if (args.csv or args.save):
+        if args.csv:
+            df.reset_index().to_csv(args.csv, index=False)
+        else: 
+            df.reset_index().to_csv('data_paths.csv', index=False)
