@@ -13,7 +13,7 @@ After that, add datasets to root folder `RetinaVesselSeg_tf`
 1. clone main branch
 2. Download the data to main
 3. run command  `python .\data_processing.py -s` in main folder. It creates `data_paths.csv` file with structure `NAME, DATASET_NAME, PATH_TO_ORIGINAL_IMAGE, MASK`  
-
+Alternative name of csv,e.g., *data.csv*, is also possible by  `python .\data_processing.py -c 'data.csv'`
 
 ToDo: images, masks to tfrecods                     
 
