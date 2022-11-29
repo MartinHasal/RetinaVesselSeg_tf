@@ -37,6 +37,7 @@ from sklearn.model_selection import train_test_split
 #import apache_beam as beam
 import tensorflow as tf
 import tensorflow.io as tfio
+import apache_beam as beam
 
 
 
@@ -122,17 +123,17 @@ def show_image(filename):
 # help code:
 df_loc = df[df['NAME'] == '32_training']    
 GIF_MASK = df_loc.MASK.unique()[0]
-read_and_decode_RGB_cv2(GIF_MASK)
+read_and_decode_mask_cv2(GIF_MASK)
 
 
 df_loc = df[df['NAME'] == 'Image_01R']    
 PNG_MASK = df_loc.MASK.unique()[0]
-read_and_decode_RGB_cv2(PNG_MASK)
+read_and_decode_mask_cv2(PNG_MASK)
 
 
 df_loc = df[df['NAME'] == 'im0005']    
 PPM_MASK = df_loc.MASK.unique()[0]
-read_and_decode_RGB_cv2(PPM_MASK)
+read_and_decode_mask_cv2(PPM_MASK)
 """
 
 
@@ -187,29 +188,78 @@ def plot_orig_mask(df, name):
 
 ############ TF RECORDS
 
-def _string_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value.encode('utf-8')]))
-
+"""
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
 def _float_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
-def create_tfrecord(filename, label, label_int):
+def _bytes_feature(value):
+  # Returns a bytes_list from a string / byte.
+  if isinstance(value, type(tf.constant(0))):
+    value = value.numpy() # BytesList won't unpack a string from an EagerTensor.
+  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+
+def create_tfrecord(filename, mask):
     print(filename)
     img = read_and_decode_RGB_cv2(filename)
     dims = img.shape
     img = tf.reshape(img, [-1]) # flatten to 1D array
     
+    img_mask = read_and_decode_mask_cv2(mask)
+    dims_mask = img_mask.shape
+    dims_mask = tf.reshape(dims_mask, [-1]) # flatten to 1D array
+    
     
     return tf.train.Example(features=tf.train.Features(feature={
         'image_raw': _float_feature(img),
         'shape_image_raw': _int64_feature([dims[0], dims[1], dims[2]]),
-        'mask_raw': _string_feature(label),
-        'shape_mask_raw': _int64_feature([label_int])
+        'mask_raw': _float_feature(img_mask),
+        'shape_mask_raw': _int64_feature([dims[0], dims[1]])
     })).SerializeToString()
 
+
+
+
+def image_example(filename):
+  img = read_and_decode_RGB_cv2(filename)
+  image_shape = img.shape
+  img = tf.reshape(img, [-1]) # flatten to 1D array
+  
+
+
+  feature = {
+      'height': _int64_feature([image_shape[0]]),
+      'width': _int64_feature([image_shape[1]]),
+      'depth': _int64_feature([image_shape[2]]),
+      'label': _bytes_feature(b'filename'),
+      'image_raw': _float_feature(img),
+  }
+
+  return tf.train.Example(features=tf.train.Features(feature=feature))
+
+
+for line in str(image_example(JPG)).split('\n')[:15]:
+    print(line)
+print('...')
+
+"""
+
+def check_resolution_integrity(df, col_names=['PATH_TO_ORIGINAL_IMAGE', 'MASK']):
+    
+    consist = True
+    for index, row in df.iterrows():
+        # print(row[col_names[0]], row[col_names[1]])
+        img_shape = read_and_decode_RGB_cv2(row[col_names[0]]).shape
+        mask_shape = read_and_decode_mask_cv2(row[col_names[0]]).shape
+        # print(img_shape, mask_shape)
+        if img_shape[:2] != mask_shape:
+            print("Mismatch:" )
+            print(row[col_names[0]], row[col_names[1]])
+            consist = False
+    return consist
     
 
 if __name__ == "__main__":
@@ -236,6 +286,22 @@ if __name__ == "__main__":
     
     train[COLUMNS].to_csv('output/train.csv', header=False, index=False)
     valid[COLUMNS].to_csv('output/valid.csv', header=False, index=False)
-
     
+    outdf = pd.read_csv('output/train.csv', header=None)
+    outdf = outdf.head()
+    
+    print(f'Are data consistent in resolution?  {check_resolution_integrity(df)}') 
+    
+    # with beam.Pipeline() as p:
+    #     (p 
+    #      | 'input_df' >> beam.Create(outdf.values)
+    #      | 'create_tfrecord' >> beam.Map(lambda x: create_tfrecord(x[0], x[1] ))
+    #      | 'write' >> beam.io.tfrecordio.WriteToTFRecord('output/train')
+    #     )
+    
+    # with tf.io.TFRecordWriter('data.tfrecords') as file_writer:
 
+        
+    #     record_bytes = create_tfrecord( [[item] for item in outdf[0].values], [[item] for item in outdf[1].values] )
+    #     file_writer.write(record_bytes)
+    #     print(record_bytes)
