@@ -1,5 +1,4 @@
 import gc
-import os
 
 import cv2 as opencv
 import numpy as np
@@ -14,6 +13,9 @@ from procs.impatch import impatchify
 from utils.timer import elapsed_timer
 
 
+SHUFFLE_BUFFER_SIZE = 1000
+
+
 def read_mask(filename):
 
     # gif cannot be read by opencv
@@ -22,6 +24,9 @@ def read_mask(filename):
         img = np.array(pil_img)
     else:
         img = opencv.imread(filename, opencv.IMREAD_GRAYSCALE)
+
+    img = img / 255
+    img = img.astype(np.uint8)
 
     return img
 
@@ -237,11 +242,11 @@ class DataAdapter(object):
         np_masks = np.expand_dims(np_masks, axis=3)
 
         # split train and test data set
-        imgs, imgs_test, masks, masks_test = train_test_split(np_imgs, np_masks, test_size=self.test_ratio, random_state=42)
+        imgs, imgs_test, masks, masks_test = train_test_split(np_imgs, np_masks, test_size=self.test_ratio, random_state=42, shuffle=True)
 
         # create training data set
         ds_train = tf.data.Dataset.from_tensor_slices((imgs, masks))
-        ds_train = ds_train.cache()
+        ds_train = ds_train.cache().shuffle(SHUFFLE_BUFFER_SIZE)
 
         if self.augmented_ratio > 0.:
             nsamples = int(len(ds_train) * self.augmented_ratio)
@@ -277,9 +282,21 @@ if __name__ == '__main__':
     DATABASE_CSV_NAME = 'dataset.csv'
 
     PATH_SIZE = 128
-    TEST_RATIO = 0.2
+    PATH_OVERLAP_RATIO = .1
 
-    da = DataAdapter(fn_csv=DATABASE_CSV_NAME, patch_size=PATH_SIZE, test_ratio=TEST_RATIO)
-    ds_training = da.getTrainingDataset()
+    AUGMENTED_RATIO = .5
+    TEST_RATIO = .2
 
-    print(len(ds_training))
+    da = DataAdapter(fn_csv=DATABASE_CSV_NAME,
+                     patch_size=PATH_SIZE,
+                     test_ratio=TEST_RATIO,
+                     augmented_ratio=AUGMENTED_RATIO
+                     )
+
+    with elapsed_timer('Creating datasets'):
+        ds_training = da.getTrainingDataset()
+
+    ds_test = da.getTestDataset()
+
+    print('nsamples_training = {}'.format(len(ds_training)))
+    print('nsamples_test = {}'.format(len(ds_test)))
