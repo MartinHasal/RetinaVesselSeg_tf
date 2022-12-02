@@ -26,8 +26,6 @@ from PIL import Image
 import argparse
 
 
-
-
 def save_fig(fig_id, tight_layout=True, fig_extension="png", resolution=300):
     # save images from matplotlib
     path = os.path.join(IMAGES_PATH, fig_id + "." + fig_extension)
@@ -45,6 +43,7 @@ def plot_fig(path):
     plt.figure()
     plt.imshow(img)
     plt.title(path.split('\\')[-1])
+
 
 def plot_orig_mask(df, name):
     # function to print original image with masks
@@ -75,10 +74,11 @@ def plot_orig_mask(df, name):
     fig.tight_layout()  
 
 
-
 """ 
 os functions
 """
+
+
 def get_files(path, endswith=".jpg"):
     # load images
     files_original = []
@@ -87,7 +87,8 @@ def get_files(path, endswith=".jpg"):
 
     # find only .jpg 
     for r, d, f in os.walk(path):
-        for file in f:
+        # sorting files alphabetically for Unix-like systems
+        for file in sorted(f):
             if file.endswith(endswith):
                 #print(os.path.join(r, file))
                 files_original.append(os.path.join(r, file))
@@ -96,7 +97,6 @@ def get_files(path, endswith=".jpg"):
         images_folders.append(r)
     
     return files_original, images_stack, images_folders
-    print(len(images_stack))
     
  
 # print the path to dataset
@@ -111,13 +111,12 @@ class VerboseStoreDataset(argparse.Action):
         setattr(namespace, self.dest, values)    
     
 
-
-#################################3 
+#################################
 if __name__ == "__main__":
     
     prog_desc = "Load data from datasets folder \n and creates csv with path to image and label"
 
-    parser = argparse.ArgumentParser(description = prog_desc)
+    parser = argparse.ArgumentParser(description=prog_desc)
     parser.version = '1.1'
     # Add the arguments
     parser.add_argument('--path',
@@ -129,9 +128,9 @@ if __name__ == "__main__":
                         required=False)
     
     parser.add_argument('-s',
-                       '--save',
-                       action='store_true',
-                       help='store the dataset in data_paths.csv')
+                        '--save',
+                        action='store_true',
+                        help='store the dataset in data_paths.csv')
     
     parser.add_argument('-c',
                         '--csv',
@@ -144,7 +143,7 @@ if __name__ == "__main__":
     
     # set path to datasets
     #PATHCWD = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\VESSELS\\datasets'
-    PATHCWD = os.path.join(args.path,'datasets')
+    PATHCWD = os.path.join(args.path, 'datasets')
     PATH_CHASEDB1 = os.path.join(PATHCWD, 'CHASEDB1')
     PATH_DRIVE = os.path.join(PATHCWD, 'DRIVE')
     PATH_STARE = os.path.join(PATHCWD, 'STARE', 'vessels')
@@ -163,10 +162,10 @@ if __name__ == "__main__":
     
     """ 
     paths, names, _ = get_files(PATH_CHASEDB1)
-    
+
     ##### important model, here the df is created
     df_chase = pd.DataFrame({ 
-                      'NAME':[name[:-4] for name in names] ,
+                      'NAME': [name[:-4] for name in names] ,
                       'DATASET_NAME': ['CHASEDB1']*len(names),
                       'PATH_TO_ORIGINAL_IMAGE': paths
                       })
@@ -177,9 +176,9 @@ if __name__ == "__main__":
     # get masks, in .png
     paths, names, _ = get_files(PATH_CHASEDB1, endswith=".png")
     df_chase['MASK'] = paths
-    
+
     df = df_chase
-    
+
     #for i in range(10):
     #    plot_fig(df.iloc[i,2])
     
@@ -191,10 +190,10 @@ if __name__ == "__main__":
     CHASEDB1 DRIVE  --- all images in single folder
     https://www.kaggle.com/datasets/andrewmvd/drive-digital-retinal-images-for-vessel-extraction
     """ 
-    paths, names, _ = get_files(os.path.join(PATH_DRIVE,'training'), endswith=".tif")
+    paths, names, _ = get_files(os.path.join(PATH_DRIVE, 'training'), endswith=".tif")
     
     df_drive = pd.DataFrame({ 
-                      'NAME':[name[:-4] for name in names] ,
+                      'NAME': [name[:-4] for name in names] ,
                       'DATASET_NAME': ['DRIVE']*len(names),
                       'PATH_TO_ORIGINAL_IMAGE': paths
                       })
@@ -226,7 +225,7 @@ if __name__ == "__main__":
     #     plt.show()
         
     df_stare1 = pd.DataFrame({ 
-                      'NAME':[name[:-4] for name in names] ,
+                      'NAME': [name[:-4] for name in names],
                       'DATASET_NAME': ['STARE']*len(names),
                       'PATH_TO_ORIGINAL_IMAGE': paths
                       })
@@ -236,15 +235,15 @@ if __name__ == "__main__":
     
     paths, names, _ = get_files(os.path.join(PATH_STARE,'stare-images'), endswith=".ppm")
     df_stare2 = pd.DataFrame({ 
-                      'NAME':[name[:-4] for name in names] ,
+                      'NAME': [name[:-4] for name in names],
                       'DATASET_NAME': ['STARE']*len(names),
                       'PATH_TO_ORIGINAL_IMAGE': paths
                       })
     
-    paths, names, _ = get_files(os.path.join(PATH_STARE,'labels-vk'), endswith=".ppm")
+    paths, names, _ = get_files(os.path.join(PATH_STARE, 'labels-vk'), endswith=".ppm")
     df_stare2['MASK'] = paths
     
-    df_stare = pd.concat([df_stare1,df_stare2])
+    df_stare = pd.concat([df_stare1, df_stare2])
     
     del df_stare1 
     del df_stare2
