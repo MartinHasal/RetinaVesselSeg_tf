@@ -59,14 +59,25 @@ class impatchify(object):
             raise ValueError('Patch size ({}) must be lesser than image dimension {}'.format(patch_size, dim))
 
         img_patches = []
+        rows, cols = img.shape[0:2]
 
-        # size of cropped image
-        npatch_row = (img.shape[0] // patch_size)
-        npatch_col = (img.shape[1] // patch_size)
+        npatch_row = (rows // patch_size) + 1 if (rows % patch_size) != 0 else 0
+        npatch_col = (cols // patch_size) + 1 if (cols % patch_size) != 0 else 0
 
-        for y in range(0, npatch_row):
-            for x in range(0, npatch_col):
-                img_patch = img[y * patch_size:(y + 1) * patch_size, x * patch_size:(x + 1) * patch_size]
+        for y in range(npatch_row):
+            for x in range(npatch_col):
+
+                if (x + 1) * patch_size < cols:
+                    c_start, c_end = x * patch_size, (x + 1) * patch_size
+                else:
+                    c_start, c_end = x * patch_size - ((x + 1) * patch_size - cols), cols
+
+                if (y + 1) * patch_size < rows:
+                    r_start, r_end = y * patch_size, (y + 1) * patch_size
+                else:
+                    r_start, r_end = y * patch_size - ((y + 1) * patch_size - rows), rows
+
+                img_patch = img[r_start:r_end, c_start:c_end]
                 img_patches.append(img_patch)
 
         return img_patches
@@ -81,7 +92,7 @@ class impatchify(object):
             raise ValueError('Overlap ratio must be non-negative float!')
 
         # set function that performs splitting image into patches
-        fn_patch = impatchify.__pathifyOverlap(overlap_ratio) if overlap_ratio > 0. else impatchify.__patchifyImg
+        fn_patch = impatchify.__pathifyOverlap(overlap_ratio) if overlap_ratio > 0. else impatchify.__patchifyImg2
 
         img_patches = []
 
