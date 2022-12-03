@@ -143,7 +143,7 @@ class DataAdapter(object):
     @augmented_ratio.setter
     def augmented_ratio(self, value: float) -> None:
 
-        if value <= 0. or value > 1:
+        if value < 0. or value > 1:
             msg = 'Value of test data set ratio must be greater than 0. and less than 1!'
             raise ValueError(msg)
 
@@ -197,6 +197,7 @@ class DataAdapter(object):
 
             with elapsed_timer('Patchifying source {}'.format(fn_src)):
                 src_img = opencv.imread(row[col_names[0]], opencv.IMREAD_COLOR)
+
                 src_patches = impatchify.getPatches(
                     imgs=[src_img],
                     patch_size=self.patch_size,
@@ -212,6 +213,7 @@ class DataAdapter(object):
 
             with elapsed_timer('Patchifying mask {}'.format(fn_mask)):
                 mask_img = read_mask(row[col_names[1]])
+
                 mask_patches = impatchify.getPatches(
                     imgs=[mask_img],
                     patch_size=self.patch_size,
@@ -246,11 +248,18 @@ class DataAdapter(object):
 
         # create training data set
         ds_train = tf.data.Dataset.from_tensor_slices((imgs, masks))
-        ds_train = ds_train.cache().shuffle(SHUFFLE_BUFFER_SIZE)
+        ds_train = ds_train.cache()
 
         if self.augmented_ratio > 0.:
             nsamples = int(len(ds_train) * self.augmented_ratio)
-            ds_train_aug = ds_train.take(nsamples).cache().map(aug_left_right).map(aug_up_down).map(aug_random_brightness)
+
+            ds_train = ds_train.shuffle(buffer_size=1000)
+            ds_train_aug = (ds_train.take(nsamples)
+                            .cache()
+                            .map(aug_left_right, num_parallel_calls=tf.data.AUTOTUNE)
+                            .map(aug_up_down, num_parallel_calls=tf.data.AUTOTUNE)
+                            .map(aug_random_brightness, num_parallel_calls=tf.data.AUTOTUNE)
+                            )
 
             ds_train = ds_train.concatenate(ds_train_aug)
 
@@ -279,13 +288,16 @@ class DataAdapter(object):
 # tests
 if __name__ == '__main__':
 
+    import matplotlib.pylab as plt
+    from utils.plots import imshow as imshow, maskshow
+
     DATABASE_CSV_NAME = 'dataset.csv'
 
-    PATH_SIZE = 128
-    PATH_OVERLAP_RATIO = .1
+    PATH_SIZE = 64
+    PATH_OVERLAP_RATIO = .0
 
-    AUGMENTED_RATIO = .5
-    TEST_RATIO = .2
+    AUGMENTED_RATIO = .0
+    TEST_RATIO = .1
 
     da = DataAdapter(fn_csv=DATABASE_CSV_NAME,
                      patch_size=PATH_SIZE,
@@ -300,3 +312,13 @@ if __name__ == '__main__':
 
     print('nsamples_training = {}'.format(len(ds_training)))
     print('nsamples_test = {}'.format(len(ds_test)))
+
+    # plot some predictions
+    nsamples = 4
+    fig, axes = plt.subplots(nsamples, 2, figsize=(8, 8))
+    for ds_sample, i in zip(ds_test.take(nsamples), range(nsamples)):
+        imshow(ds_sample[0].numpy(), ax=axes[i][0])
+
+        maskshow(ds_sample[1].numpy(), ax=axes[i][1])
+    fig.tight_layout()
+    plt.show()
