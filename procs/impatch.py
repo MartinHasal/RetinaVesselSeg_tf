@@ -92,7 +92,7 @@ class impatchify(object):
             raise ValueError('Overlap ratio must be non-negative float!')
 
         # set function that performs splitting image into patches
-        fn_patch = impatchify.__pathifyOverlap(overlap_ratio) if overlap_ratio > 0. else impatchify.__patchifyImg2
+        fn_patch = impatchify.__pathifyOverlap(overlap_ratio) if overlap_ratio > 0. else impatchify.__patchifyImg
 
         img_patches = []
 
