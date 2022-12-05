@@ -15,7 +15,7 @@ from utils.plots import imshow, maskshow, plotTrainingHistory
 from utils.timer import elapsed_timer
 
 
-DATABASE_CSV_NAME = 'dataset.csv'
+DATABASE_CSV_NAME = 'data_paths.csv'
 
 PATH_SIZE = 128
 PATH_OVERLAP_RATIO = .2
@@ -26,7 +26,8 @@ TEST_RATIO = .2
 da = DataAdapter(fn_csv=DATABASE_CSV_NAME,
                  patch_size=PATH_SIZE,
                  test_ratio=TEST_RATIO,
-                 augmented_ratio=AUGMENTED_RATIO
+                 augmented_ratio=AUGMENTED_RATIO,
+                 enhancement=True
                  )
 
 with elapsed_timer('Creating datasets'):
@@ -39,6 +40,9 @@ NCLASSES = 2
 
 BATCH_SIZE = 16
 NEPOCHS = 30
+
+
+
 
 unet = UNet(IMG_SHAPE, nclasses=NCLASSES, encoder_type='vgg16')
 nn_unet_vgg16 = unet.model
@@ -75,8 +79,8 @@ plt.show()
 
 # predict on image
 DATA_DIR = 'datasets/DRIVE/training/'
-IMG_NAME = '21_training'
-LABEL_NAME = '21_manual1'
+IMG_NAME = '38_training'
+LABEL_NAME = '38_manual1'
 
 tst_file_img = os.path.join(DATA_DIR, 'images/{}.tif'.format(IMG_NAME))
 tst_img = opencv.imread(tst_file_img, opencv.IMREAD_COLOR)
