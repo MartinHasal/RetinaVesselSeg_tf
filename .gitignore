@@ -2,3 +2,4 @@
 datasets/
 *.csv
 results/
+__pycache__
