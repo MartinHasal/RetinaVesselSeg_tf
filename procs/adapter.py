@@ -16,6 +16,28 @@ from utils.timer import elapsed_timer
 SHUFFLE_BUFFER_SIZE = 1000
 
 
+# testing function to enhance input image
+# should be rewritten to tf
+def hist_equalization_color(img,  clipLimit = 2.0, tileGridSize=(8,8)):
+        
+    # to HSV format
+    hsv_img = opencv.cvtColor(img, opencv.COLOR_BGR2HSV)
+        
+    h, s, v = hsv_img[:,:,0], hsv_img[:,:,1], hsv_img[:,:,2]
+    # create a CLAHE object (Arguments are optional).
+    # clipLimit	= Threshold for contrast limiting. 
+    # apply CLAHE on V part
+    clahe = opencv.createCLAHE(clipLimit=clipLimit, tileGridSize=tileGridSize)
+    v = clahe.apply(v)
+    # complete image
+    hsv_img = np.dstack((h,s,v))
+    # return back to BGR
+    print('Clahe')
+    return  opencv.cvtColor(hsv_img, opencv.COLOR_HSV2BGR)
+    
+    
+
+
 def read_mask(filename):
 
     # gif cannot be read by opencv
@@ -54,7 +76,7 @@ def aug_random_brightness(img, mask):
 
 class DataAdapter(object):
 
-    def __init__(self, fn_csv: str, patch_size: int = 128, patch_overlap_ratio: int = 0.0, test_ratio: float = 0.2, augmented_ratio: float = .3):
+    def __init__(self, fn_csv: str, patch_size: int = 128, patch_overlap_ratio: int = 0.0, test_ratio: float = 0.2, augmented_ratio: float = .3, enhancement: bool = False):
 
         self._df_paths = None
 
@@ -72,6 +94,9 @@ class DataAdapter(object):
 
         self._augmented_ratio = 0.
         self.augmented_ratio = augmented_ratio
+        
+        self._enhancement = False
+        self.enhancement = enhancement
 
         self._fn_csv = None
         self.fn_csv = fn_csv
@@ -197,12 +222,16 @@ class DataAdapter(object):
 
             with elapsed_timer('Patchifying source {}'.format(fn_src)):
                 src_img = opencv.imread(row[col_names[0]], opencv.IMREAD_COLOR)
+                
+                if self.enhancement == True:
+                    src_img = hist_equalization_color(src_img)
 
                 src_patches = impatchify.getPatches(
                     imgs=[src_img],
                     patch_size=self.patch_size,
                     overlap_ratio=self.patch_overlap_ratio
                 )
+                
 
             np_patches = np.array(src_patches)
             del src_img
