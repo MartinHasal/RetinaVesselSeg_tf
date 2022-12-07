@@ -17,6 +17,7 @@ from procs.adapter import DataAdapter
 from utils.cmat import ConfusionMatrix
 from utils.plots import imshow, maskshow, plotTrainingHistory
 from utils.timer import elapsed_timer
+from utils.roc import AucRoc
 
 
 def getDatasets(db_name: str, patch_size: int = 128, overlap_ratio: float = .0, ds_test_ratio: float = .2,
@@ -60,15 +61,23 @@ def predictTestDataset(ds, nsamples_to_plot: int, nn_model) -> None:
     plt.show()
 
     # get ground true
-    y_true = np.concatenate([y for _, y in ds], axis=0).reshape(-1)
+    y_true = np.concatenate([y for _, y in ds], axis=0).reshape(-1).astype(np.float32)
 
-    # plot confusion matrix
     class_names = ['Background', 'Vessel']
-    cm = ConfusionMatrix(ds, y_label.numpy(), class_names)
+    cm = ConfusionMatrix(ds, y_label, class_names)
     cm.plot(figsize=(4, 4), title_fontsize=14, label_fontsize=12, ticks_fontsize=10, value_size=8)
 
-    # print classification reports
-    print(classification_report_imbalanced(y_true.reshape(-1), y_label.numpy().reshape(-1)))
+    # print classification report (label)
+    print('Classification report (labels)')
+    print(classification_report_imbalanced(y_true, y_label.reshape(-1)))
+
+    # plot auc roc curve
+    auc_roc = AucRoc(y_true=y_true, y_pred=y_prob)
+    auc_roc.plot()
+    plt.show()
+
+    #
+    print('auc roc = {0:.4f}'.format(auc_roc.auc))
 
 
 def plotPredictedImg(fn_img: str, fn_label: str, nn_model) -> None:
@@ -131,7 +140,7 @@ if __name__ == '__main__':
     NCLASSES = 2
 
     BATCH_SIZE = 16
-    NEPOCHS = 30
+    NEPOCHS = 1
 
     # pipeline running
 
