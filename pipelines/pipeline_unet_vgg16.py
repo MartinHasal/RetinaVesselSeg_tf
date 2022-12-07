@@ -8,10 +8,13 @@ import matplotlib.pylab as plt
 
 from PIL import Image
 
+from imblearn.metrics import classification_report_imbalanced
+
 from funcs.inference import predict, predictImg
 from funcs.train import trainSegmentationModel
 from models.unet import UNet
 from procs.adapter import DataAdapter
+from utils.cmat import ConfusionMatrix
 from utils.plots import imshow, maskshow, plotTrainingHistory
 from utils.timer import elapsed_timer
 
@@ -42,12 +45,12 @@ def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16'):
     return nn_unet_vgg16
 
 
-def plotPredictedTestDataset(ds, nsamples: int, nn_model) -> None:
+def predictTestDataset(ds, nsamples_to_plot: int, nn_model) -> None:
 
     y_prob, y_label = predict(nn_model, ds)
 
-    fig, axes = plt.subplots(nsamples, 4, figsize=(8, 8))
-    for idx, ds_sample in enumerate(ds_test.take(nsamples)):
+    fig, axes = plt.subplots(nsamples_to_plot, 4, figsize=(8, 8))
+    for idx, ds_sample in enumerate(ds_test.take(nsamples_to_plot)):
         imshow(ds_sample[0].numpy(), ax=axes[idx][0], title='Input image')
         maskshow(ds_sample[1].numpy(), ax=axes[idx][1], title='Mask (true)')
         maskshow(y_prob[idx], ax=axes[idx][2], title='Mask (pred. prob.f)')
@@ -55,6 +58,17 @@ def plotPredictedTestDataset(ds, nsamples: int, nn_model) -> None:
     fig.suptitle('Predictions on test data set')
     fig.tight_layout()
     plt.show()
+
+    # get ground true
+    y_true = np.concatenate([y for _, y in ds], axis=0).reshape(-1)
+
+    # plot confusion matrix
+    class_names = ['Background', 'Vessel']
+    cm = ConfusionMatrix(ds, y_label.numpy(), class_names)
+    cm.plot(figsize=(4, 4), title_fontsize=14, label_fontsize=12, ticks_fontsize=10, value_size=8)
+
+    # print classification reports
+    print(classification_report_imbalanced(y_true.reshape(-1), y_label.numpy().reshape(-1)))
 
 
 def plotPredictedImg(fn_img: str, fn_label: str, nn_model) -> None:
@@ -156,7 +170,7 @@ if __name__ == '__main__':
 
     # predict on test data set
     NSAMPLES = 4
-    plotPredictedTestDataset(ds_test, nsamples=NSAMPLES, nn_model=nn_unet_vgg16)
+    predictTestDataset(ds_test, nsamples_to_plot=NSAMPLES, nn_model=nn_unet_vgg16)
 
     # plot predicting images
     plotPredictedImg(path_tst_img, path_tst_label, nn_model=nn_unet_vgg16)
