@@ -21,7 +21,7 @@ def predict(nn_model: KerasFunctional, ds: tf.data.Dataset, batch_size: int = 32
     y_prob = tf.math.reduce_max(y_prob, axis=-1)
     y_prob = np.abs(np.ones(y_label.shape, dtype=np.float32) - tf.cast(y_label, dtype=np.float32) - y_prob)
 
-    return y_prob, y_label
+    return y_prob, y_label.numpy()
 
 
 def predictImg(nn_model: KerasFunctional, img: np.ndarray, patch_size: int = 128) -> (np.ndarray, np.ndarray):
