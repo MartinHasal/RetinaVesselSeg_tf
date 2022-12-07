@@ -72,9 +72,26 @@ def aug_random_brightness(img, mask):
     return tf.image.random_brightness(img, 0.6), mask
 
 
+def colorContrastBrightness(img, mask, contrast_range=[0.5, 1.4], brightnes_delta=[-0.1, 0.3]):
+    
+    contrast = tf.random.uniform(shape = [], 
+                                 minval = contrast_range[0], 
+                                 maxval = contrast_range[1])
+    
+    brightness = tf.random.uniform(shape = [], 
+                                   minval = brightnes_delta[0], 
+                                   maxval = brightnes_delta[1])
+    # adjust contrast
+    img = tf.image.adjust_contrast(img, contrast)    
+    # adjust brightness
+    img = tf.image.adjust_contrast(img, brightness)
+    
+    return tf.clip_by_value(img, 0, 1), mask
+
+
 class DataAdapter(object):
 
-    def __init__(self, fn_csv: str, patch_size: int = 128, patch_overlap_ratio: float = 0.0, test_ratio: float = 0.2, augmented_ratio: float = .3, enhancement: bool = False):
+    def __init__(self, fn_csv: str, patch_size: int = 128, patch_overlap_ratio: float = 0.0, test_ratio: float = 0.2, augmented_ratio: float = .3, enhancement: bool = False, contrast_range: list[float] = [0.5, 1.4], brightnes_delta: list[float] =[-0.1, 0.3]):
 
         self._df_paths = None
 
@@ -98,6 +115,11 @@ class DataAdapter(object):
 
         self._fn_csv = None
         self.fn_csv = fn_csv
+        
+        self._contrast_range = [0.5, 1.4]
+        self.contrast_range = contrast_range
+        
+        self._brightnes_delta = [-0.1, 0.3]
 
     @property
     def fn_csv(self):
@@ -285,7 +307,7 @@ class DataAdapter(object):
                             .cache()
                             .map(aug_left_right, num_parallel_calls=tf.data.AUTOTUNE)
                             .map(aug_up_down, num_parallel_calls=tf.data.AUTOTUNE)
-                            .map(aug_random_brightness, num_parallel_calls=tf.data.AUTOTUNE)
+                            .map(colorContrastBrightness, num_parallel_calls=tf.data.AUTOTUNE)
                             )
 
             ds_train = ds_train.concatenate(ds_train_aug)
