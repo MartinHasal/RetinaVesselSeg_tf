@@ -87,6 +87,23 @@ def colorContrastBrightness(img, mask, contrast_range=[0.5, 1.4], brightnes_delt
     img = tf.image.adjust_contrast(img, brightness)
     
     return tf.clip_by_value(img, 0, 1), mask
+    
+    
+def rot90(img, mask):
+
+    return tf.cond(pred=tf.random.uniform(()) > 0.5,
+                   true_fn=(lambda: (tf.image.rot90(img), tf.image.rot90(mask))),
+                   false_fn=(lambda: (img, mask))
+                   )  
+
+                   
+def transpose(img, mask):
+    # funny trick for augmentation for square matrix 
+    # transpose is anti-clockwise 90 and vertical flip simuntaneously
+    return tf.cond(pred=tf.random.uniform(()) > 0.5,
+                   true_fn=(lambda: (tf.image.transpose(img), tf.image.transpose(mask))),
+                   false_fn=(lambda: (img, mask))
+                   ) 
 
 
 class DataAdapter(object):
@@ -302,16 +319,17 @@ class DataAdapter(object):
         if self.augmented_ratio > 0.:
             nsamples = int(len(ds_train) * self.augmented_ratio)
 
-            ds_train = ds_train.shuffle(buffer_size=1000)
+            ds_train = ds_train.shuffle(buffer_size=len(ds_train)) # https://stackoverflow.com/questions/46444018/meaning-of-buffer-size-in-dataset-map-dataset-prefetch-and-dataset-shuffle
             ds_train_aug = (ds_train.take(nsamples)
                             .cache()
                             .map(aug_left_right, num_parallel_calls=tf.data.AUTOTUNE)
                             .map(aug_up_down, num_parallel_calls=tf.data.AUTOTUNE)
                             .map(colorContrastBrightness, num_parallel_calls=tf.data.AUTOTUNE)
+                            .map(rot90, num_parallel_calls=tf.data.AUTOTUNE)
                             )
 
             ds_train = ds_train.concatenate(ds_train_aug)
-
+            #ds_train = ds_train_aug
         # create test data set
         ds_test = tf.data.Dataset.from_tensor_slices((imgs_test, masks_test))
         ds_test = ds_test.cache()
