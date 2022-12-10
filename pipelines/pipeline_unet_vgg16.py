@@ -39,7 +39,7 @@ def getDatasets(db_name: str, patch_size: int = 128, overlap_ratio: float = .0, 
 
 def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16'):
 
-    unet = UNet(input_shape, nclasses=nclasses, encoder_type=encoder_type)
+    unet = UNet(input_shape, nclasses=nclasses, encoder_type=encoder_type, trainable_encoder=True)
     nn_unet_vgg16 = unet.model
     nn_unet_vgg16.summary()
 
@@ -102,6 +102,18 @@ def plotPredictedImg(fn_img: str, fn_label: str, nn_model) -> None:
     plt.show()
 
 
+def plotColorizedVessels(fn_img: str, fn_label: str, nn_model) -> None:
+    
+    img = opencv.imread(path_tst_img, opencv.IMREAD_COLOR)
+    img = opencv.cvtColor(img, opencv.COLOR_BGR2RGB)
+    predicted_prob, predicted_label = predictImg(nn_unet_vgg16, img)
+    
+    plt.figure(figsize=(10,10))
+    plt.imshow(opencv.bitwise_or(img, img, mask=predicted_label))
+    plt.title('Colorized mask by original image')
+    plt.show()
+    
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -128,10 +140,10 @@ if __name__ == '__main__':
     DATABASE_CSV_NAME = args.db_csv
 
     PATCH_SIZE = 128
-    PATCH_OVERLAP_RATIO = .2
+    PATCH_OVERLAP_RATIO = .5
 
-    AUGMENTED_RATIO = .5
-    DS_TEST_RATIO = .2
+    AUGMENTED_RATIO = 1
+    DS_TEST_RATIO = .1
 
     CLAHE_ENHANCEMENT = False
 
@@ -139,8 +151,8 @@ if __name__ == '__main__':
     IMG_SHAPE = (PATCH_SIZE, PATCH_SIZE, 3)
     NCLASSES = 2
 
-    BATCH_SIZE = 16
-    NEPOCHS = 1
+    BATCH_SIZE = 32
+    NEPOCHS = 30
 
     # pipeline running
 
