@@ -169,6 +169,4 @@ if __name__ == '__main__':
     nn_model = unet.model
     nn_model.summary()
 
-    unet.with_dropout = True
-    nn_model = unet.model
-    nn_model.summary()
+    
