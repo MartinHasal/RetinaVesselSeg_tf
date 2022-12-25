@@ -64,6 +64,6 @@ def predictImg(nn_model: KerasFunctional, img: np.ndarray, patch_size: int = 128
             r += 1; c = 1
 
     # convert to P(X | y = 1)
-    img_prob = np.abs(np.ones(img_labels.shape, dtype=np.float32) - img_labels - img_prob)
+    # img_prob = np.abs(np.ones(img_labels.shape, dtype=np.float32) - img_labels - img_prob)
 
     return img_prob, img_labels
