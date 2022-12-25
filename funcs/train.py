@@ -19,6 +19,7 @@ def trainSegmentationModel(nn_model: KerasFunctional,
                            batch_size: int = 32,
                            buffer_size: int = 1000,
                            focal_loss_gamma: float = 2.,
+                           display_callback = False,
                            class_weights=None):
 
     if loss_type not in ['cross_entropy', 'focal_loss']:
@@ -53,7 +54,16 @@ def trainSegmentationModel(nn_model: KerasFunctional,
                                                   patience=10,
                                                   restore_best_weights=True,
                                                   mode='max')
-
+                                                  
+    # display prediction online
+    """
+    class DisplayCallback(tf.keras.callbacks.Callback):
+      def on_epoch_end(self, epoch, logs=None):
+        if epoch % (nepochs / 5) == 0: # display evolution of algorithm every 5th epoch 
+          # clear_output(wait=True) # if you want replace the images each time, uncomment this
+          show_predictions(train_dataset, 7)
+          print ('\nSample Prediction after epoch {}\n'.format(epoch+1))                                     
+    """
     # process training and validation dataset
     train_batches = (
         ds_train.cache()
