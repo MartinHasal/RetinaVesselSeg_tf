@@ -15,7 +15,8 @@ from funcs.train import trainSegmentationModel
 from models.unet import UNet
 from procs.adapter import DataAdapter
 from utils.cmat import ConfusionMatrix
-from utils.plots import imshow, maskshow, plotTrainingHistory
+from utils.plots import imshow, maskshow, plotTrainingHistory, plotColorizedVessels, plotPredictedImg
+from utils.plots import plotHistogramImgSlicer, plotPredictedImgSlicer
 from utils.timer import elapsed_timer
 from utils.roc import AucRoc
 
@@ -39,7 +40,7 @@ def getDatasets(db_name: str, patch_size: int = 128, overlap_ratio: float = .0, 
 
 def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16'):
 
-    unet = UNet(input_shape, nclasses=nclasses, encoder_type=encoder_type, trainable_encoder=True)
+    unet = UNet(input_shape, nclasses=nclasses, encoder_type=encoder_type, trainable_encoder=False)
     nn_unet_vgg16 = unet.model
     nn_unet_vgg16.summary()
 
@@ -78,41 +79,32 @@ def predictTestDataset(ds, nsamples_to_plot: int, nn_model) -> None:
 
     #
     print('auc roc = {0:.4f}'.format(auc_roc.auc))
-
-
-def plotPredictedImg(fn_img: str, fn_label: str, nn_model) -> None:
-
-    img = opencv.imread(fn_img, opencv.IMREAD_COLOR)
-
-    pil_img = Image.open(fn_label)
-    label = np.array(pil_img) / 255; label = label.astype(np.uint8)
-
-    predicted_prob, predicted_label = predictImg(nn_model, img)
-
-    mask_titles = ['Mask (true)', 'Mask (pred. probability)', 'Mask (pred. label)']
-    mask_imgs = [label, predicted_prob, predicted_label]
-
-    fig, axes = plt.subplots(1, 4, figsize=(10, 3))
-    # plot source image
-    imshow(img, ax=axes[0], title='Input image')
-    # plot mask
-    for mask, title, idx in zip(mask_imgs, mask_titles, range(1, 4)):
-        maskshow(mask, ax=axes[idx], title=title)
-    fig.suptitle('Image {}'.format(fn_img))
-    plt.show()
-
-
-def plotColorizedVessels(fn_img: str, fn_label: str, nn_model) -> None:
     
-    img = opencv.imread(path_tst_img, opencv.IMREAD_COLOR)
-    img = opencv.cvtColor(img, opencv.COLOR_BGR2RGB)
-    predicted_prob, predicted_label = predictImg(nn_unet_vgg16, img)
+
+
+
+
+
+
+
+
     
-    plt.figure(figsize=(10,10))
-    plt.imshow(opencv.bitwise_or(img, img, mask=predicted_label))
-    plt.title('Colorized mask by original image')
-    plt.show()
+""" # dev notes 
+
+ZZZ = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\RetinaVesselSeg_tf\\datasets\\DRIVE\\training\\images\\21_training.tif'
+img = opencv.imread(ZZZ, opencv.IMREAD_COLOR)
+plt.imshow(img)
+predicted_prob, predicted_label = predictImg(nn_unet_vgg16, img)
+plt.imshow(predicted_prob,cmap='gray')
+
+"""
     
+
+
+
+
+
+   
 
 if __name__ == '__main__':
 
@@ -183,8 +175,8 @@ if __name__ == '__main__':
 
     # predict on image
     DATA_DIR = 'datasets/DRIVE/training/'
-    IMG_NAME = '38_training'
-    LABEL_NAME = '38_manual1'
+    IMG_NAME = '23_training'
+    LABEL_NAME = '23_manual1'
 
     path_tst_img = os.path.join(DATA_DIR, 'images/{}.tif'.format(IMG_NAME))
     path_tst_label = os.path.join(DATA_DIR, '1st_manual/{}.gif'.format(LABEL_NAME))
@@ -194,7 +186,12 @@ if __name__ == '__main__':
     predictTestDataset(ds_test, nsamples_to_plot=NSAMPLES, nn_model=nn_unet_vgg16)
 
     # plot predicting images
-    plotPredictedImg(path_tst_img, path_tst_label, nn_model=nn_unet_vgg16)
+    plotPredictedImg(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
+    
+    plotPredictedImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
+    plotColorizedVessels(path_tst_img, predictImg, nn_model=nn_unet_vgg16)
+    plotHistogramImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
+
 
     # saving models
     if args.output_model_path is not None:
@@ -202,4 +199,6 @@ if __name__ == '__main__':
             if not os.path.exists(args.output_model_path):
                 os.makedirs(args.output_model_path)
             nn_unet_vgg16.save(os.path.join(args.output_model_path, args.output_model_name))
+            
+    
 
