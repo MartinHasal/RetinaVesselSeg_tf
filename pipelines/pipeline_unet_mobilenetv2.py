@@ -12,7 +12,7 @@ from imblearn.metrics import classification_report_imbalanced
 
 from funcs.inference import predict, predictImg
 from funcs.train import trainSegmentationModel
-from models.unet import UNet
+from models.unet_MobileNetV2 import UnetMobileNetV2
 from procs.adapter import DataAdapter
 from utils.cmat import ConfusionMatrix
 from utils.plots import imshow, maskshow, plotTrainingHistory
@@ -37,13 +37,13 @@ def getDatasets(db_name: str, patch_size: int = 128, overlap_ratio: float = .0, 
     return ds_train, ds_test
 
 
-def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16'):
+def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'MobileNetV2'):
 
-    unet = UNet(input_shape, nclasses=nclasses, encoder_type=encoder_type, trainable_encoder=True)
-    nn_unet_vgg16 = unet.model
-    nn_unet_vgg16.summary()
+    unet = UnetMobileNetV2(input_shape, nclasses=nclasses, encoder_type=encoder_type, trainable_encoder=True)
+    nn_unet_MobileNetV2 = unet.model
+    nn_unet_MobileNetV2.summary()
 
-    return nn_unet_vgg16
+    return nn_unet_MobileNetV2
 
 
 def predictTestDataset(ds, nsamples_to_plot: int, nn_model) -> None:
@@ -102,16 +102,6 @@ def plotPredictedImg(fn_img: str, fn_label: str, nn_model) -> None:
     plt.show()
 
 
-def plotColorizedVessels(fn_img: str, fn_label: str, nn_model) -> None:
-    
-    img = opencv.imread(path_tst_img, opencv.IMREAD_COLOR)
-    img = opencv.cvtColor(img, opencv.COLOR_BGR2RGB)
-    predicted_prob, predicted_label = predictImg(nn_unet_vgg16, img)
-    
-    plt.figure(figsize=(10,10))
-    plt.imshow(opencv.bitwise_or(img, img, mask=predicted_label))
-    plt.title('Colorized mask by original image')
-    plt.show()
     
 
 if __name__ == '__main__':
@@ -140,9 +130,9 @@ if __name__ == '__main__':
     DATABASE_CSV_NAME = args.db_csv
 
     PATCH_SIZE = 128
-    PATCH_OVERLAP_RATIO = .5
+    PATCH_OVERLAP_RATIO = .4
 
-    AUGMENTED_RATIO = 1
+    AUGMENTED_RATIO = 0.5
     DS_TEST_RATIO = .1
 
     CLAHE_ENHANCEMENT = False
@@ -152,7 +142,7 @@ if __name__ == '__main__':
     NCLASSES = 2
 
     BATCH_SIZE = 32
-    NEPOCHS = 30
+    NEPOCHS = 100
 
     # pipeline running
 
@@ -166,11 +156,11 @@ if __name__ == '__main__':
 
     with elapsed_timer('Build models'):
 
-        nn_unet_vgg16 = buildModel(IMG_SHAPE, NCLASSES)
+        nn_unet_MobileNetV2 = buildModel(IMG_SHAPE, NCLASSES)
 
     with elapsed_timer('Training model'):
 
-        history = trainSegmentationModel(nn_model=nn_unet_vgg16,
+        history = trainSegmentationModel(nn_model=nn_unet_MobileNetV2,
                                          nclasses=NCLASSES,
                                          ds_train=ds_train,
                                          ds_val=ds_test,
@@ -191,15 +181,15 @@ if __name__ == '__main__':
 
     # predict on test data set
     NSAMPLES = 4
-    predictTestDataset(ds_test, nsamples_to_plot=NSAMPLES, nn_model=nn_unet_vgg16)
+    predictTestDataset(ds_test, nsamples_to_plot=NSAMPLES, nn_model=nn_unet_MobileNetV2)
 
     # plot predicting images
-    plotPredictedImg(path_tst_img, path_tst_label, nn_model=nn_unet_vgg16)
+    plotPredictedImg(path_tst_img, path_tst_label, nn_model=nn_unet_MobileNetV2)
 
     # saving models
     if args.output_model_path is not None:
         with elapsed_timer('Saving model'):
             if not os.path.exists(args.output_model_path):
                 os.makedirs(args.output_model_path)
-            nn_unet_vgg16.save(os.path.join(args.output_model_path, args.output_model_name))
+            nn_unet_MobileNetV2.save(os.path.join(args.output_model_path, args.output_model_name))
 
