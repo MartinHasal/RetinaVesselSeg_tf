@@ -100,7 +100,7 @@ def get_reduce_axes(per_image):
         axes.insert(0, 0)
     return axes    
     
-class DiceLoss(tf.keras.losses.Loss):
+class DiceBinaryLoss(tf.keras.losses.Loss):
     def __init__(
         self,
         beta=1,
