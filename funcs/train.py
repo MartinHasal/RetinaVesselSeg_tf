@@ -6,7 +6,7 @@ from keras.engine.functional import Functional as KerasFunctional
 from tensorflow.keras import optimizers as KerasOptimizers
 from tensorflow.keras.optimizers import schedules as KerasSchedules
 
-from funcs.losses import FocalLoss
+from funcs.losses import FocalLoss, DiceBinaryLoss
 from funcs.metrics import FixedMeanIoU
 
 
@@ -22,12 +22,14 @@ def trainSegmentationModel(nn_model: KerasFunctional,
                            display_callback = False,
                            class_weights=None):
 
-    if loss_type not in ['cross_entropy', 'focal_loss']:
+    if loss_type not in ['cross_entropy', 'focal_loss', 'dice']:
         raise ValueError('Supported loss types are cross entropy and focal loss.')
 
     # set loss types
     if loss_type == 'cross_entropy':
         fn_loss = 'sparse_categorical_crossentropy'
+    elif loss_type == 'dice':
+        fn_loss = DiceBinaryLoss()
     else:
         fn_loss = FocalLoss(gamma=focal_loss_gamma, class_weights=class_weights)
 
