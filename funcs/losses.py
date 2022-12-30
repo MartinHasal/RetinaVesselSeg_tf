@@ -3,8 +3,6 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend
 
-from keras_cv.utils.fill_utils import gather_channels
-from keras_cv.utils.fill_utils import get_reduce_axes
 
 _EPSILON = tf.keras.backend.epsilon()
 
@@ -64,20 +62,6 @@ class FocalLoss(tf.keras.losses.Loss):
         return fn_focal_loss(y_true, y_pred, self._gamma, self._class_weights)
 
 
-
-
-# def dice_loss(y_true, y_pred):
-    # y_true=K.flatten(y_true)
-    # y_pred=K.flatten(y_pred)
-    # intersec=K.sum(y_true* y_pred)
-    # return (-((2* intersec + 0.1) / (K.sum(y_true) + K.sum(y_pred) + 0.1)))
-
-# def iou(y_true,y_pred):
-    # intersec = K.sum(y_true * y_pred)
-    # union = K.sum(y_true + y_pred)
-    # iou = (intersec + 0.1) / (union- intersec + 0.1)
-    # return iou
-
 def gather_channels(*xs, indexes=None):
     if indexes is None:
         return xs
@@ -109,6 +93,7 @@ class DiceBinaryLoss(tf.keras.losses.Loss):
         smooth=_EPSILON,
         label_smoothing=0.0,
         from_logits=False,
+        class_indexes=None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -118,6 +103,7 @@ class DiceBinaryLoss(tf.keras.losses.Loss):
         self.from_logits = from_logits
         self.label_smoothing = label_smoothing
         self.smooth = smooth
+        self.class_indexes = class_indexes
         
     def get_config(self):
 
@@ -172,7 +158,7 @@ class DiceBinaryLoss(tf.keras.losses.Loss):
 
         dice_score = numerator / denominator
         dice_score = tf.cond(
-            self.per_image,
+            tf.constant(self.per_image, dtype=tf.bool),
             lambda: keras.backend.mean(dice_score, axis=0),
             lambda: keras.backend.mean(dice_score),
         )
