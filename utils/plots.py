@@ -105,7 +105,6 @@ def plotPredictedImg(fn_img: str, fn_label: str, predictImg, nn_model) -> None:
 def plotPredictedImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model) -> None:    
 
     img = opencv.imread(fn_img, opencv.IMREAD_COLOR)
-    img = opencv.cvtColor(img, opencv.COLOR_BGR2RGB) # ZEPTEJ SE MARYHO PROC DO PREDICTED JDE RGB???
     predicted_prob, predicted_label = predictImg(nn_model, img)
     predicted_prob = convertProbability(predicted_prob, predicted_label)
     init_prob = np.mean(predicted_prob)
