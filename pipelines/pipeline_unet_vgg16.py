@@ -38,9 +38,9 @@ def getDatasets(db_name: str, patch_size: int = 128, overlap_ratio: float = .0, 
     return ds_train, ds_test
 
 
-def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16'):
+def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16', trainable_encoder: bool = False):
 
-    unet = UNet(input_shape, nclasses=nclasses, encoder_type=encoder_type, trainable_encoder=False)
+    unet = UNet(input_shape, nclasses=nclasses, encoder_type=encoder_type, trainable_encoder=trainable_encoder)
     nn_unet_vgg16 = unet.model
     nn_unet_vgg16.summary()
 
@@ -158,7 +158,7 @@ if __name__ == '__main__':
 
     with elapsed_timer('Build models'):
 
-        nn_unet_vgg16 = buildModel(IMG_SHAPE, NCLASSES)
+        nn_unet_vgg16 = buildModel(IMG_SHAPE, NCLASSES, trainable_encoder=True)
 
     with elapsed_timer('Training model'):
 
@@ -167,7 +167,8 @@ if __name__ == '__main__':
                                          ds_train=ds_train,
                                          ds_val=ds_test,
                                          nepochs=NEPOCHS,
-                                         batch_size=BATCH_SIZE)
+                                         batch_size=BATCH_SIZE,
+                                         decay='warmup')
 
     # plot training history
     df_history = pd.DataFrame(history.history)
