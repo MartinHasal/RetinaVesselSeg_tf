@@ -58,7 +58,7 @@ def trainSegmentationModel(nn_model: KerasFunctional,
         LR_MIN = 0.00001
         LR_RAMPUP_EPOCHS = 3
         LR_SUSTAIN_EPOCHS = 1
-        LR_EXP_DECAY = .6
+        LR_EXP_DECAY = (nepochs - (LR_RAMPUP_EPOCHS + LR_SUSTAIN_EPOCHS)) / nepochs
         assert nepochs > 7 and isinstance(nepochs, int), \
             f"Number of epochs must be greater than 7, got: {nepochs}, You stack in rising lr"
             
