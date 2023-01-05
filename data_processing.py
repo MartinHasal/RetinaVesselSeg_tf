@@ -74,6 +74,14 @@ def plot_orig_mask(df, name):
     fig.tight_layout()  
 
 
+def path_replace_HFR(line):
+    # change file extension
+    new_line = line[:-4]
+    new_line = new_line + '.tif'
+    path, base = os.path.split(new_line)
+    parent_path = os.path.dirname(path)  
+    return os.path.join(parent_path,'manual1',base)
+
 """ 
 os functions
 """
@@ -117,7 +125,7 @@ if __name__ == "__main__":
     prog_desc = "Load data from datasets folder \n and creates csv with path to image and label"
 
     parser = argparse.ArgumentParser(description=prog_desc)
-    parser.version = '1.1'
+    parser.version = '1.2'
     # Add the arguments
     parser.add_argument('--path',
                         #metavar='path',
@@ -126,6 +134,11 @@ if __name__ == "__main__":
                         default=os.getcwd(),
                         help='the path to dataset, datased included. Default=current dir',
                         required=False)
+    
+    parser.add_argument('-b',
+                        '--save_hrf',
+                        action='store_true',
+                        help='include HFR dataset 3504 x 2336.csv')
     
     parser.add_argument('-s',
                         '--save',
@@ -142,11 +155,12 @@ if __name__ == "__main__":
     
     
     # set path to datasets
-    #PATHCWD = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\VESSELS\\datasets'
+    # PATHCWD = 'D:\\ARG@CS.FEI.VSB Dropbox\\Martin Hasal\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\VESSELS\\datasets'
     PATHCWD = os.path.join(args.path, 'datasets')
     PATH_CHASEDB1 = os.path.join(PATHCWD, 'CHASEDB1')
     PATH_DRIVE = os.path.join(PATHCWD, 'DRIVE')
     PATH_STARE = os.path.join(PATHCWD, 'STARE', 'vessels')
+    PATH_HRF = os.path.join(PATHCWD, 'HRF')
 
     """ Images functions """
 
@@ -249,6 +263,44 @@ if __name__ == "__main__":
     del df_stare2
     df = pd.concat([df, df_stare])
     
+    
+
+
+    """ 
+    
+    HRF  --- .ppm images
+    
+    """ 
+    if (args.save_hrf):
+        paths, names, _ = get_files(os.path.join(PATH_HRF,'images'), endswith=".JPG")
+        
+        df_hfr_JPG = pd.DataFrame({ 
+                          'NAME': [name[:-4] for name in names],
+                          'DATASET_NAME': ['HFR']*len(names),
+                          'PATH_TO_ORIGINAL_IMAGE': paths,
+                          'MASK' : paths
+                          })
+        
+        paths, names, _ = get_files(os.path.join(PATH_HRF,'images'), endswith=".jpg")
+        
+        df_hfr_jpg = pd.DataFrame({ 
+                          'NAME': [name[:-4] for name in names],
+                          'DATASET_NAME': ['HFR']*len(names),
+                          'PATH_TO_ORIGINAL_IMAGE': paths,
+                          'MASK' : paths
+                          })
+        
+        df_hfr = pd.concat([df_hfr_JPG, df_hfr_jpg])
+        
+        # set right path to mask
+        df_hfr['MASK'] = df_hfr.MASK.apply(path_replace_HFR)
+        
+        del df_hfr_JPG 
+        del df_hfr_jpg 
+        
+        df = pd.concat([df, df_hfr])
+    
+    # SAVE PATHS
     plot_orig_mask(df, df.NAME.iloc[110])
     
     print(df.DATASET_NAME.value_counts())
