@@ -1,12 +1,9 @@
 import argparse
 import os
 
-import cv2 as opencv
 import numpy as np
 import pandas as pd
 import matplotlib.pylab as plt
-
-from PIL import Image
 
 from imblearn.metrics import classification_report_imbalanced
 
@@ -79,17 +76,9 @@ def predictTestDataset(ds, nsamples_to_plot: int, nn_model) -> None:
 
     #
     print('auc roc = {0:.4f}'.format(auc_roc.auc))
-    
 
 
-
-
-
-
-
-
-    
-""" # dev notes 
+""" dev notes 
 
 ZZZ = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\RetinaVesselSeg_tf\\datasets\\DRIVE\\training\\images\\21_training.tif'
 img = opencv.imread(ZZZ, opencv.IMREAD_COLOR)
@@ -98,13 +87,6 @@ predicted_prob, predicted_label = predictImg(nn_unet_vgg16, img)
 plt.imshow(predicted_prob,cmap='gray')
 
 """
-    
-
-
-
-
-
-   
 
 if __name__ == '__main__':
 
@@ -126,16 +108,46 @@ if __name__ == '__main__':
                         default='unet_vgg16',
                         required=False)
 
+    parser.add_argument('--patch_size',
+                        metavar='PATCH_SIZE',
+                        default=128,
+                        required=False)
+
+    parser.add_argument('--patch_overlap_ratio',
+                        metavar='PATCH_OVERLAP_RATIO',
+                        default=.5,
+                        required=False)
+
+    parser.add_argument('--ds_augmented_ratio',
+                        metavar='AUGMENTED_RATIO',
+                        default=1,
+                        required=False)
+
+    parser.add_argument('--ds_test_ratio',
+                        metavar='TEST_DATASET_RATIO',
+                        default=.1,
+                        required=False)
+
+    parser.add_argument('--batch_size',
+                        metavar='BATCH_SIZE',
+                        default=32,
+                        required=False)
+
+    parser.add_argument('--nepochs',
+                        metavar='NUMBER_OF_EPOCHS',
+                        default=30,
+                        required=False)
+
     args = parser.parse_args()
 
-    # data builder settings
+    # data set builder settings
     DATABASE_CSV_NAME = args.db_csv
 
-    PATCH_SIZE = 128
-    PATCH_OVERLAP_RATIO = .5
+    PATCH_SIZE = args.patch_size
+    PATCH_OVERLAP_RATIO = args.patch_overlap_ratio
 
-    AUGMENTED_RATIO = 1
-    DS_TEST_RATIO = .1
+    AUGMENTED_RATIO = args.ds_augmented_ratio
+    DS_TEST_RATIO = args.ds_test_ratio
 
     CLAHE_ENHANCEMENT = False
 
@@ -143,8 +155,8 @@ if __name__ == '__main__':
     IMG_SHAPE = (PATCH_SIZE, PATCH_SIZE, 3)
     NCLASSES = 2
 
-    BATCH_SIZE = 32
-    NEPOCHS = 30
+    BATCH_SIZE = args.batch_size
+    NEPOCHS = args.nepochs
 
     # pipeline running
 
@@ -193,13 +205,9 @@ if __name__ == '__main__':
     plotColorizedVessels(path_tst_img, predictImg, nn_model=nn_unet_vgg16)
     plotHistogramImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
 
-
-    # saving models
+    # saving model
     if args.output_model_path is not None:
         with elapsed_timer('Saving model'):
             if not os.path.exists(args.output_model_path):
                 os.makedirs(args.output_model_path)
             nn_unet_vgg16.save(os.path.join(args.output_model_path, args.output_model_name))
-            
-    
-
