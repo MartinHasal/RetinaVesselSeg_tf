@@ -8,6 +8,7 @@ import matplotlib.pylab as plt
 from imblearn.metrics import classification_report_imbalanced
 
 from funcs.inference import predict, predictImg
+from funcs.losses import LossType
 from funcs.train import trainSegmentationModel
 from models.unet import UNet
 from procs.adapter import DataAdapter
@@ -138,6 +139,13 @@ if __name__ == '__main__':
                         default=30,
                         required=False)
 
+    parser.add_argument('--loss_type',
+                        metavar='LOSS FUNCTION TYPE',
+                        type=LossType,
+                        choices=LossType,
+                        default=LossType.CROSS_ENTROPY,
+                        required=False)
+
     args = parser.parse_args()
 
     # data set builder settings
@@ -157,6 +165,8 @@ if __name__ == '__main__':
 
     BATCH_SIZE = args.batch_size
     NEPOCHS = args.nepochs
+
+    LOSS_TYPE = args.loss_type
 
     # pipeline running
 
@@ -180,6 +190,7 @@ if __name__ == '__main__':
                                          ds_val=ds_test,
                                          nepochs=NEPOCHS,
                                          batch_size=BATCH_SIZE,
+                                         loss_type=LOSS_TYPE,
                                          decay='warmup')
 
     # plot training history

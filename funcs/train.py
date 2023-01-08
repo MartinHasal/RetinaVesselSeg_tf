@@ -1,12 +1,14 @@
 import tensorflow as tf
 
+from enum import Enum
+
 from keras import callbacks as KerasCallbacks
 from keras.engine.functional import Functional as KerasFunctional
 
 from tensorflow.keras import optimizers as KerasOptimizers
 from tensorflow.keras.optimizers import schedules as KerasSchedules
 
-from funcs.losses import FocalLoss, DiceBinaryLoss
+from funcs.losses import LossType, FocalLoss, DiceBinaryLoss
 from funcs.metrics import FixedMeanIoU
 
 
@@ -15,21 +17,18 @@ def trainSegmentationModel(nn_model: KerasFunctional,
                            ds_train: tf.data.Dataset,
                            ds_val: tf.data.Dataset = None,
                            nepochs: int = 10,
-                           loss_type: str = 'cross_entropy',
+                           loss_type: LossType = LossType.CROSS_ENTROPY,
                            batch_size: int = 32,
                            buffer_size: int = 1000,
-                           decay = 'exponential',
+                           decay = 'exponential',  # TODO enum
                            focal_loss_gamma: float = 2.,
-                           display_callback = False,
+                           display_callback: bool = False,
                            class_weights=None):
 
-    if loss_type not in ['cross_entropy', 'focal_loss', 'dice']:
-        raise ValueError('Supported loss types are cross entropy and focal loss.')
-
     # set loss types
-    if loss_type == 'cross_entropy':
+    if loss_type == LossType.CROSS_ENTROPY:
         fn_loss = 'sparse_categorical_crossentropy'
-    elif loss_type == 'dice':
+    elif loss_type == LossType.DICE:
         fn_loss = DiceBinaryLoss()
     else:
         fn_loss = FocalLoss(gamma=focal_loss_gamma, class_weights=class_weights)
@@ -38,8 +37,6 @@ def trainSegmentationModel(nn_model: KerasFunctional,
     mean_io_u = FixedMeanIoU(num_classes=nclasses, name='mean_io_u')
     metrics = [mean_io_u]
 
-
-    
     # set learning rate decay    
     if decay == 'exponential':
         initial_learning_rate = .01

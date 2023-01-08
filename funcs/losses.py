@@ -1,10 +1,22 @@
 import tensorflow as tf
 
+from enum import Enum
+
 from tensorflow import keras
 from tensorflow.keras import backend
 
 
 _EPSILON = tf.keras.backend.epsilon()
+
+
+class LossType(Enum):
+
+    CROSS_ENTROPY = 'cross_entropy'
+    DICE = 'dice'
+    FOCAL_LOSS = 'focal'
+
+    def __str__(self):
+        return self.value
 
 
 def fn_focal_loss(y_true, y_pred, gamma: float, class_weights=None) -> tf.Tensor:
