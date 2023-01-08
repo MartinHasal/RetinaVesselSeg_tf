@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from enum import Enum
+from funcs.lr import LearningRateDecayType, ScheduleWarmupExponentialDecay
 
 from keras import callbacks as KerasCallbacks
 from keras.engine.functional import Functional as KerasFunctional
@@ -20,9 +20,10 @@ def trainSegmentationModel(nn_model: KerasFunctional,
                            loss_type: LossType = LossType.CROSS_ENTROPY,
                            batch_size: int = 32,
                            buffer_size: int = 1000,
-                           decay = 'exponential',  # TODO enum
+                           decay: LearningRateDecayType = LearningRateDecayType.EXPONENTIAL,
                            focal_loss_gamma: float = 2.,
                            display_callback: bool = False,
+                           warmup_decay_info: bool = False,
                            class_weights=None):
 
     # set loss types
@@ -38,7 +39,7 @@ def trainSegmentationModel(nn_model: KerasFunctional,
     metrics = [mean_io_u]
 
     # set learning rate decay    
-    if decay == 'exponential':
+    if decay == LearningRateDecayType.EXPONENTIAL:
         initial_learning_rate = .01
         decay_steps = 10000
         decay_rate = .96
@@ -47,38 +48,8 @@ def trainSegmentationModel(nn_model: KerasFunctional,
                                                       decay_steps=decay_steps,
                                                       decay_rate=decay_rate,
                                                       staircase=True)
-        
-    if decay == 'warmup':
-        # Learning rate schedule
-        LR_START = 0.00001
-        LR_MAX = 0.00002 
-        LR_MIN = 0.00001
-        LR_RAMPUP_EPOCHS = 3
-        LR_SUSTAIN_EPOCHS = 1
-        LR_EXP_DECAY = (nepochs - (LR_RAMPUP_EPOCHS + LR_SUSTAIN_EPOCHS)) / nepochs
-        assert nepochs > 7 and isinstance(nepochs, int), \
-            f"Number of epochs must be greater than 7, got: {nepochs}, You stack in rising lr"
-            
-
-        def lrfn(epoch):
-            if epoch < LR_RAMPUP_EPOCHS:
-                lr = (LR_MAX - LR_START) / LR_RAMPUP_EPOCHS * epoch + LR_START
-            elif epoch < LR_RAMPUP_EPOCHS + LR_SUSTAIN_EPOCHS:
-                lr = LR_MAX
-            else:
-                lr = (LR_MAX - LR_MIN) * LR_EXP_DECAY**(epoch - LR_RAMPUP_EPOCHS - LR_SUSTAIN_EPOCHS) + LR_MIN
-            return lr
-
-
-        # lr_schedule = tf.keras.callbacks.LearningRateScheduler(lrfn, verbose=True) # unsuported class in our approach
-        
-        from matplotlib import pyplot as plt
-        rng = [i for i in range(nepochs)]
-        y = [lrfn(x) for x in rng]
-        plt.plot(rng, y)
-        print("Learning rate schedule: {:.3g} to {:.3g} to {:.3g}".format(y[0], max(y), y[-1]))
-        
-        lr_schedule = KerasSchedules.PiecewiseConstantDecay(rng[:-1], y)
+    else:
+        lr_schedule = ScheduleWarmupExponentialDecay(nepochs=nepochs, info=warmup_decay_info)
 
     # set optimizer and compile model
     optimizer = KerasOptimizers.Adam(learning_rate=lr_schedule)
@@ -99,6 +70,7 @@ def trainSegmentationModel(nn_model: KerasFunctional,
           show_predictions(train_dataset, 7)
           print ('\nSample Prediction after epoch {}\n'.format(epoch+1))                                     
     """
+
     # process training and validation dataset
     train_batches = (
         ds_train.cache()

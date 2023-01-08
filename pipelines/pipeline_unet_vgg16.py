@@ -9,6 +9,7 @@ from imblearn.metrics import classification_report_imbalanced
 
 from funcs.inference import predict, predictImg
 from funcs.losses import LossType
+from funcs.lr import LearningRateDecayType
 from funcs.train import trainSegmentationModel
 from models.unet import UNet
 from procs.adapter import DataAdapter
@@ -146,6 +147,13 @@ if __name__ == '__main__':
                         default=LossType.CROSS_ENTROPY,
                         required=False)
 
+    parser.add_argument('--lr_decay_type',
+                        metavar='LEARNING RATE DECAY TYPE',
+                        type=LearningRateDecayType,
+                        choices=LearningRateDecayType,
+                        default=LearningRateDecayType.WARMUP_EXPONENTIAL_DECAY,
+                        required=False)
+
     args = parser.parse_args()
 
     # data set builder settings
@@ -167,6 +175,7 @@ if __name__ == '__main__':
     NEPOCHS = args.nepochs
 
     LOSS_TYPE = args.loss_type
+    LR_DECAY_TYPE = args.lr_decay_type
 
     # pipeline running
 
@@ -191,7 +200,7 @@ if __name__ == '__main__':
                                          nepochs=NEPOCHS,
                                          batch_size=BATCH_SIZE,
                                          loss_type=LOSS_TYPE,
-                                         decay='warmup')
+                                         decay=LR_DECAY_TYPE)
 
     # plot training history
     df_history = pd.DataFrame(history.history)
