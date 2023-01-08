@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from enum import Enum
 from pathlib import Path as OSPath
+
 from PIL import Image
 from sklearn.model_selection import train_test_split
 
@@ -16,25 +18,98 @@ from utils.timer import elapsed_timer
 SHUFFLE_BUFFER_SIZE = 1000
 
 
-# testing function to enhance input image
-# should be rewritten to tf
-def hist_equalization_color(img, clipLimit = 2.0, tileGridSize=(8,8)):
+"""
+ image/data set augmentation implementation
+"""
+
+
+class DatasetAugmentation(Enum):
+
+    NONE = 0
+    CLAHE_EQUALIZATION = 2
+    CLAHE_EQUALIZATION_INPLACE = 3
+    FLIP_HORIZONTAL = 4
+    FLIP_VERTICAL = 8
+    ROTATION_90 = 16
+    ADJUST_CONTRAST = 32
+    ADJUST_BRIGHTNESS = 64
+    ALL = 126
+    ALL_CLAHE_INPLACE = 127
+
+
+def getImageEqualization_CLAHE(img, clip_limit=2., tile_grid_size=(8, 8)):
         
     # to HSV format
     hsv_img = opencv.cvtColor(img, opencv.COLOR_BGR2HSV)
-        
     h, s, v = hsv_img[:, :, 0], hsv_img[:, :, 1], hsv_img[:, :, 2]
-    # create a CLAHE object (Arguments are optional).
-    # clipLimit	= Threshold for contrast limiting. 
-    # apply CLAHE on V part
-    clahe = opencv.createCLAHE(clipLimit=clipLimit, tileGridSize=tileGridSize)
+
+    # create a CLAHE object
+    # clip_limit = threshold for contrast limiting.
+    # apply CLAHE on V channel
+    clahe = opencv.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
     v = clahe.apply(v)
+
     # complete image
     hsv_img = np.dstack((h, s, v))
-    # return back to BGR
-    print('Clahe')
-    return opencv.cvtColor(hsv_img, opencv.COLOR_HSV2BGR)
-    
+
+    # convert HSV back to BGR
+    img_bgr = opencv.cvtColor(hsv_img, opencv.COLOR_HSV2BGR)
+
+    # invoke garbage collector
+    del hsv_img, clahe
+    gc.collect()
+
+    return img_bgr
+
+
+def getPatchRandomFlip_HORIZONTAL(img, mask):
+
+    return tf.cond(pred=tf.random.uniform(()) > 0.5,
+                   true_fn=(lambda: (tf.image.flip_left_right(img), tf.image.flip_left_right(mask))),
+                   false_fn=(lambda: (img, mask)))
+
+
+def getPatchRandomFlip_VERTICAL(img, mask):
+
+    return tf.cond(pred=tf.random.uniform(()) > 0.5,
+                   true_fn=(lambda: (tf.image.flip_up_down(img), tf.image.flip_up_down(mask))),
+                   false_fn=(lambda: (img, mask)))
+
+
+def getPatchRandomRotate_90(img, mask):
+
+    return tf.cond(pred=tf.random.uniform(()) > 0.5,
+                   true_fn=(lambda: (tf.image.rot90(img), tf.image.rot90(mask))),
+                   false_fn=(lambda: (img, mask)))
+
+
+def getPatchRandomBrightness(img, mask):
+
+    return tf.image.random_brightness(img, 0.6), mask
+
+
+def getPatchRandomAdjust_CONTRAST(img, mask, contrast_range=(0.5, 1.4)):
+
+    # adjust contrast
+    contrast = tf.random.uniform(shape=[], minval=contrast_range[0], maxval=contrast_range[1])
+    img = tf.image.adjust_contrast(img, contrast)    
+
+    return tf.clip_by_value(img, 0, 1), mask
+
+
+def getPatchRandomAdjust_BRIGHTNESS(img, mask, brightness_delta=(-0.1, 0.3)):
+
+    # adjust brightness
+    brightness = tf.random.uniform(shape=[], minval=brightness_delta[0], maxval=brightness_delta[1])
+    img = tf.image.adjust_brightness(img, brightness)
+
+    return tf.clip_by_value(img, 0, 1), mask
+
+
+"""
+ Data set builder implementation
+"""
+
 
 def read_mask(filename):
 
@@ -51,64 +126,17 @@ def read_mask(filename):
     return img
 
 
-def aug_left_right(img, mask):
-
-    return tf.cond(pred=tf.random.uniform(()) > 0.5,
-                   true_fn=(lambda: (tf.image.flip_left_right(img), tf.image.flip_left_right(mask))),
-                   false_fn=(lambda: (img, mask))
-                   )
-
-
-def aug_up_down(img, mask):
-
-    return tf.cond(pred=tf.random.uniform(()) > 0.5,
-                   true_fn=(lambda: (tf.image.flip_up_down(img), tf.image.flip_up_down(mask))),
-                   false_fn=(lambda: (img, mask))
-                   )
-
-
-def aug_random_brightness(img, mask):
-
-    return tf.image.random_brightness(img, 0.6), mask
-
-
-def colorContrastBrightness(img, mask, contrast_range=[0.5, 1.4], brightnes_delta=[-0.1, 0.3]):
-    
-    contrast = tf.random.uniform(shape = [], 
-                                 minval = contrast_range[0], 
-                                 maxval = contrast_range[1])
-    
-    brightness = tf.random.uniform(shape = [], 
-                                   minval = brightnes_delta[0], 
-                                   maxval = brightnes_delta[1])
-    # adjust contrast
-    img = tf.image.adjust_contrast(img, contrast)    
-    # adjust brightness
-    img = tf.image.adjust_contrast(img, brightness)
-    
-    return tf.clip_by_value(img, 0, 1), mask
-    
-    
-def rot90(img, mask):
-
-    return tf.cond(pred=tf.random.uniform(()) > 0.5,
-                   true_fn=(lambda: (tf.image.rot90(img), tf.image.rot90(mask))),
-                   false_fn=(lambda: (img, mask))
-                   )  
-
-                   
-def transpose(img, mask):
-    # funny trick for augmentation for square matrix 
-    # transpose is anti-clockwise 90 and vertical flip simuntaneously
-    return tf.cond(pred=tf.random.uniform(()) > 0.5,
-                   true_fn=(lambda: (tf.image.transpose(img), tf.image.transpose(mask))),
-                   false_fn=(lambda: (img, mask))
-                   ) 
-
-
 class DataAdapter(object):
 
-    def __init__(self, fn_csv: str, patch_size: int = 128, patch_overlap_ratio: float = 0.0, test_ratio: float = 0.2, augmented_ratio: float = .3, enhancement: bool = False, contrast_range: list[float] = [0.5, 1.4], brightnes_delta: list[float] =[-0.1, 0.3]):
+    def __init__(self,
+                 fn_csv: str,
+                 patch_size: int = 128,
+                 patch_overlap_ratio: float = .0,
+                 test_ratio: float = 0.2,
+                 augmented_ratio: float = .3,
+                 augmentation_ops_list: tuple[DatasetAugmentation] = (DatasetAugmentation.ALL,),
+                 contrast_range: tuple[float, float] = (0.5, 1.4),
+                 brightness_delta: tuple[float, float] = (-0.1, 0.3)):
 
         self._df_paths = None
 
@@ -126,17 +154,23 @@ class DataAdapter(object):
 
         self._augmented_ratio = 0.
         self.augmented_ratio = augmented_ratio
-        
+
+        # augmentation ops
+        self._augmentation_ops_list = (DatasetAugmentation.NONE,)
+        self._augmentation_ops_flg = DatasetAugmentation.NONE.value
+        self.augmentation_ops_list = augmentation_ops_list
+
         self._enhancement = False
-        self.enhancement = enhancement
+        self.enhancement = True
+
+        self._contrast_range = (0., 0.)
+        self.contrast_range = contrast_range
+
+        self._brightness_delta = (0., 0.)
+        self.brightness_delta = brightness_delta
 
         self._fn_csv = None
         self.fn_csv = fn_csv
-        
-        self._contrast_range = [0.5, 1.4]
-        self.contrast_range = contrast_range
-        
-        self._brightnes_delta = [-0.1, 0.3]
 
     @property
     def fn_csv(self):
@@ -227,6 +261,53 @@ class DataAdapter(object):
             msg = 'Value of test data set ratio must be positive and less than 1!'
             raise ValueError(msg)
 
+    @property
+    def augmentation_ops_list(self) -> tuple[DatasetAugmentation]:
+
+        return self._augmentation_ops_list
+
+    @augmentation_ops_list.setter
+    def augmentation_ops_list(self, lst_ops: tuple[DatasetAugmentation]) -> None:
+
+        if self._augmentation_ops_list == lst_ops:
+            return
+
+        self.__reset()
+
+        flg = 0
+        for op in lst_ops: flg |= op.value
+
+        self._augmentation_ops_flg = flg
+        self._augmentation_ops_list = lst_ops
+
+    @property
+    def contrast_range(self) -> tuple[float, float]:
+
+        return self._contrast_range
+
+    @contrast_range.setter
+    def contrast_range(self, rng: tuple[float]) -> None:
+
+        if self._contrast_range == rng:
+            return
+
+        self.__reset()
+        self._contrast_range = rng
+
+    @property
+    def brightness_delta(self) -> tuple[float, float]:
+
+        return self._brightness_delta
+
+    @brightness_delta.setter
+    def brightness_delta(self, rng: tuple[float]):
+
+        if self._brightness_delta == rng:
+            return
+
+        self.__reset()
+        self._brightness_delta = rng
+
     def __reset(self) -> None:
 
         if self._df_paths is not None:
@@ -259,16 +340,16 @@ class DataAdapter(object):
 
             with elapsed_timer('Patchifying source {}'.format(fn_src)):
                 src_img = opencv.imread(row[col_names[0]], opencv.IMREAD_COLOR)
-                
+
+                # TODO fix this
                 if self.enhancement == True:
-                    src_img = hist_equalization_color(src_img)
+                    src_img = getImageEqualization_CLAHE(src_img)
 
                 src_patches = impatchify.getPatches(
                     imgs=[src_img],
                     patch_size=self.patch_size,
                     overlap_ratio=self.patch_overlap_ratio
                 )
-                
 
             np_patches = np.array(src_patches)
             del src_img
@@ -317,19 +398,37 @@ class DataAdapter(object):
         ds_train = ds_train.cache()
 
         if self.augmented_ratio > 0.:
+
             nsamples = int(len(ds_train) * self.augmented_ratio)
 
-            ds_train = ds_train.shuffle(buffer_size=len(ds_train)) # https://stackoverflow.com/questions/46444018/meaning-of-buffer-size-in-dataset-map-dataset-prefetch-and-dataset-shuffle
-            ds_train_aug = (ds_train.take(nsamples)
-                            .cache()
-                            .map(aug_left_right, num_parallel_calls=tf.data.AUTOTUNE)
-                            .map(aug_up_down, num_parallel_calls=tf.data.AUTOTUNE)
-                            .map(colorContrastBrightness, num_parallel_calls=tf.data.AUTOTUNE)
-                            .map(rot90, num_parallel_calls=tf.data.AUTOTUNE)
-                            )
+            ds_train = ds_train.shuffle(buffer_size=len(ds_train))
+            ds_train_aug = (ds_train.take(nsamples).cache())
 
-            ds_train = ds_train.concatenate(ds_train_aug)
-            #ds_train = ds_train_aug
+            # data set augmentation
+            if self._augmentation_ops_flg != DatasetAugmentation.NONE.value:
+
+                if self._augmentation_ops_flg & DatasetAugmentation.FLIP_HORIZONTAL.value:
+                    with elapsed_timer('Training data set augmentation (random horizontal flip)'):
+                        ds_train_aug = ds_train_aug.map(getPatchRandomFlip_HORIZONTAL, num_parallel_calls=tf.data.AUTOTUNE)
+
+                if self._augmentation_ops_flg & DatasetAugmentation.FLIP_VERTICAL.value:
+                    with elapsed_timer('Training data set augmentation (random vertical flip)'):
+                        ds_train_aug = ds_train_aug.map(getPatchRandomFlip_VERTICAL, num_parallel_calls=tf.data.AUTOTUNE)
+
+                if self._augmentation_ops_flg & DatasetAugmentation.ROTATION_90.value:
+                    with elapsed_timer('Training data set augmentation (random rotation 90)'):
+                        ds_train_aug = ds_train_aug.map(getPatchRandomRotate_90, num_parallel_calls=tf.data.AUTOTUNE)
+
+                if self._augmentation_ops_flg & DatasetAugmentation.ADJUST_CONTRAST.value:
+                    with elapsed_timer('Training data set augmentation (random adjustment contrast)'):
+                        ds_train_aug = ds_train_aug.map(getPatchRandomAdjust_CONTRAST, num_parallel_calls=tf.data.AUTOTUNE)
+
+                if self._augmentation_ops_flg & DatasetAugmentation.ADJUST_BRIGHTNESS.value:
+                    with elapsed_timer('Training data set augmentation (random adjustment brightness)'):
+                        ds_train_aug = ds_train_aug.map(getPatchRandomAdjust_BRIGHTNESS, num_parallel_calls=tf.data.AUTOTUNE)
+
+                ds_train = ds_train.concatenate(ds_train_aug)
+
         # create test data set
         ds_test = tf.data.Dataset.from_tensor_slices((imgs_test, masks_test))
         ds_test = ds_test.cache()
