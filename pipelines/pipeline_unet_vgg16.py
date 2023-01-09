@@ -1,21 +1,15 @@
 import os
 
-import numpy as np
 import pandas as pd
-import matplotlib.pylab as plt
-
-from imblearn.metrics import classification_report_imbalanced
 
 from pipelines.args import cli_argument_parser
-from funcs.inference import predict, predictImg
+from funcs.inference import predictDataset, predictImg
 from funcs.train import trainSegmentationModel
 from models.unet import UNet
 from procs.adapter import getDatasets
-from utils.cmat import ConfusionMatrix
-from utils.plots import imshow, maskshow, plotTrainingHistory, plotColorizedVessels, plotPredictedImg
+from utils.plots import plotTrainingHistory, plotColorizedVessels, plotPredictedImg
 from utils.plots import plotHistogramImgSlicer, plotPredictedImgSlicer
 from utils.timer import elapsed_timer
-from utils.roc import AucRoc
 
 
 def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16', trainable_encoder: bool = False):
@@ -25,40 +19,6 @@ def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16', trai
     nn_unet_vgg16.summary()
 
     return nn_unet_vgg16
-
-
-def predictTestDataset(ds, nsamples_to_plot: int, nn_model) -> None:
-
-    y_prob, y_label = predict(nn_model, ds)
-
-    fig, axes = plt.subplots(nsamples_to_plot, 4, figsize=(8, 8))
-    for idx, ds_sample in enumerate(ds_test.take(nsamples_to_plot)):
-        imshow(ds_sample[0].numpy(), ax=axes[idx][0], title='Input image')
-        maskshow(ds_sample[1].numpy(), ax=axes[idx][1], title='Mask (true)')
-        maskshow(y_prob[idx], ax=axes[idx][2], title='Mask (pred. prob.f)')
-        maskshow(y_label[idx], ax=axes[idx][3], title='Mask (pred. label)')
-    fig.suptitle('Predictions on test data set')
-    fig.tight_layout()
-    plt.show()
-
-    # get ground true
-    y_true = np.concatenate([y for _, y in ds], axis=0).reshape(-1).astype(np.float32)
-
-    class_names = ['Background', 'Vessel']
-    cm = ConfusionMatrix(ds, y_label, class_names)
-    cm.plot(figsize=(4, 4), title_fontsize=14, label_fontsize=12, ticks_fontsize=10, value_size=8)
-
-    # print classification report (label)
-    print('Classification report (labels)')
-    print(classification_report_imbalanced(y_true, y_label.reshape(-1)))
-
-    # plot auc roc curve
-    auc_roc = AucRoc(y_true=y_true, y_pred=y_prob)
-    auc_roc.plot()
-    plt.show()
-
-    #
-    print('auc roc = {0:.4f}'.format(auc_roc.auc))
 
 
 """ dev notes 
@@ -111,6 +71,10 @@ if __name__ == '__main__':
     df_history = pd.DataFrame(history.history)
     plotTrainingHistory(df_history)
 
+    # predict on test data set
+    NSAMPLES = 4
+    predictDataset(ds_test, nsamples_to_plot=NSAMPLES, nn_model=nn_unet_vgg16)
+
     # predict on image
     DATA_DIR = 'datasets/DRIVE/training/'
     IMG_NAME = '23_training'
@@ -118,10 +82,6 @@ if __name__ == '__main__':
 
     path_tst_img = os.path.join(DATA_DIR, 'images/{}.tif'.format(IMG_NAME))
     path_tst_label = os.path.join(DATA_DIR, '1st_manual/{}.gif'.format(LABEL_NAME))
-
-    # predict on test data set
-    NSAMPLES = 4
-    predictTestDataset(ds_test, nsamples_to_plot=NSAMPLES, nn_model=nn_unet_vgg16)
 
     # plot predicting images
     plotPredictedImg(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
