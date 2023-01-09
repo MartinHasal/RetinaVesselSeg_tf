@@ -12,7 +12,7 @@ from funcs.losses import LossType
 from funcs.lr import LearningRateDecayType
 from funcs.train import trainSegmentationModel
 from models.unet import UNet
-from procs.adapter import DataAdapter
+from procs.adapter import DataAdapter, DatasetAugmentation
 from utils.cmat import ConfusionMatrix
 from utils.plots import imshow, maskshow, plotTrainingHistory, plotColorizedVessels, plotPredictedImg
 from utils.plots import plotHistogramImgSlicer, plotPredictedImgSlicer
@@ -21,15 +21,18 @@ from utils.roc import AucRoc
 
 
 def getDatasets(db_name: str, patch_size: int = 128, overlap_ratio: float = .0, ds_test_ratio: float = .2,
-                augmented_ratio: float = 0., clahe_enhancement: bool = False) -> (np.ndarray, np.ndarray):
+                augmentation_ratio: float = 0., augmentation_ratio_clahe: float = 0.,
+                augmentation_ops_list: list = (DatasetAugmentation.NONE,)) -> (np.ndarray, np.ndarray):
 
-    da = DataAdapter(fn_csv=db_name,
-                     patch_size=patch_size,
-                     test_ratio=ds_test_ratio,
-                     patch_overlap_ratio=overlap_ratio,
-                     augmented_ratio=augmented_ratio,
-                     enhancement=clahe_enhancement
-                     )
+    da = DataAdapter(
+        fn_csv=db_name,
+        patch_size=patch_size,
+        test_ratio=ds_test_ratio,
+        patch_overlap_ratio=overlap_ratio,
+        augmentation_ratio=augmentation_ratio,
+        augmentation_clahe_ratio=augmentation_ratio_clahe,
+        augmentation_ops_list=augmentation_ops_list
+    )
 
     ds_train = da.getTrainingDataset()
     ds_test = da.getTestDataset()
@@ -122,7 +125,12 @@ if __name__ == '__main__':
 
     parser.add_argument('--ds_augmented_ratio',
                         metavar='AUGMENTED_RATIO',
-                        default=1,
+                        default=.5,
+                        required=False)
+
+    parser.add_argument('--clahe_augmentation_ratio',
+                        metavar='CLAHE_AUGMENTATION_RATIO',
+                        default=.1,
                         required=False)
 
     parser.add_argument('--ds_test_ratio',
@@ -141,14 +149,14 @@ if __name__ == '__main__':
                         required=False)
 
     parser.add_argument('--loss_type',
-                        metavar='LOSS FUNCTION TYPE',
+                        metavar='LOSS_FUNCTION_TYPE',
                         type=LossType,
                         choices=LossType,
                         default=LossType.CROSS_ENTROPY,
                         required=False)
 
     parser.add_argument('--lr_decay_type',
-                        metavar='LEARNING RATE DECAY TYPE',
+                        metavar='LEARNING_RATE_DECAY_TYPE',
                         type=LearningRateDecayType,
                         choices=LearningRateDecayType,
                         default=LearningRateDecayType.WARMUP_EXPONENTIAL_DECAY,
@@ -165,7 +173,7 @@ if __name__ == '__main__':
     AUGMENTED_RATIO = args.ds_augmented_ratio
     DS_TEST_RATIO = args.ds_test_ratio
 
-    CLAHE_ENHANCEMENT = False
+    AUGMENTATION_RATIO_CLAHE = args.clahe_augmentation_ratio
 
     # NN settings
     IMG_SHAPE = (PATCH_SIZE, PATCH_SIZE, 3)
@@ -185,7 +193,8 @@ if __name__ == '__main__':
                                         patch_size=PATCH_SIZE,
                                         overlap_ratio=PATCH_OVERLAP_RATIO,
                                         ds_test_ratio=DS_TEST_RATIO,
-                                        clahe_enhancement=CLAHE_ENHANCEMENT)
+                                        augmentation_ratio=AUGMENTED_RATIO,
+                                        augmentation_ratio_clahe=AUGMENTATION_RATIO_CLAHE)
 
     with elapsed_timer('Build models'):
 

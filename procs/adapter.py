@@ -7,6 +7,7 @@ import tensorflow as tf
 
 from enum import Enum
 from pathlib import Path as OSPath
+from typing import Union
 
 from PIL import Image
 from sklearn.model_selection import train_test_split
@@ -132,11 +133,12 @@ class DataAdapter(object):
                  fn_csv: str,
                  patch_size: int = 128,
                  patch_overlap_ratio: float = .0,
-                 test_ratio: float = 0.2,
-                 augmented_ratio: float = .3,
-                 augmentation_ops_list: tuple[DatasetAugmentation] = (DatasetAugmentation.ALL,),
-                 contrast_range: tuple[float, float] = (0.5, 1.4),
-                 brightness_delta: tuple[float, float] = (-0.1, 0.3)):
+                 test_ratio: float = .2,
+                 augmentation_ratio: float = .3,
+                 augmentation_ops_list: Union[tuple[DatasetAugmentation], list[DatasetAugmentation]] = (DatasetAugmentation.ALL,),
+                 augmentation_clahe_ratio: float = .0,
+                 contrast_range: Union[tuple[float, float], list[float, float]] = (0.5, 1.4),
+                 brightness_delta: Union[tuple[float, float], list[float, float]] = (-0.1, 0.3)):
 
         self._df_paths = None
 
@@ -152,16 +154,16 @@ class DataAdapter(object):
         self._patch_overlap_ratio = 0.
         self.patch_overlap_ratio = patch_overlap_ratio
 
-        self._augmented_ratio = 0.
-        self.augmented_ratio = augmented_ratio
+        self._augmentation_ratio = 0.
+        self.augmentation_ratio = augmentation_ratio
 
         # augmentation ops
         self._augmentation_ops_list = (DatasetAugmentation.NONE,)
         self._augmentation_ops_flg = DatasetAugmentation.NONE.value
         self.augmentation_ops_list = augmentation_ops_list
 
-        self._enhancement = False
-        self.enhancement = True
+        self._augmentation_clahe_ratio = 0.
+        self.augmentation_clahe_ratio = augmentation_clahe_ratio
 
         self._contrast_range = (0., 0.)
         self.contrast_range = contrast_range
@@ -232,22 +234,22 @@ class DataAdapter(object):
         self._test_ratio = value
 
     @property
-    def augmented_ratio(self) -> float:
+    def augmentation_ratio(self) -> float:
 
-        return self._augmented_ratio
+        return self._augmentation_ratio
 
-    @augmented_ratio.setter
-    def augmented_ratio(self, value: float) -> None:
+    @augmentation_ratio.setter
+    def augmentation_ratio(self, value: float) -> None:
 
         if value < 0. or value > 1:
             msg = 'Value of test data set ratio must be greater than 0. and less than 1!'
             raise ValueError(msg)
 
-        if value == self.augmented_ratio:
+        if value == self.augmentation_ratio:
             return
 
         self.__reset()
-        self._augmented_ratio = value
+        self._augmentation_ratio = value
 
     @property
     def patch_overlap_ratio(self) -> float:
@@ -260,6 +262,24 @@ class DataAdapter(object):
         if value < 0. or value >= 1:
             msg = 'Value of test data set ratio must be positive and less than 1!'
             raise ValueError(msg)
+
+        self.__reset()
+        self._patch_overlap_ratio = value
+
+    @property
+    def augmentation_clahe_ratio(self) -> float:
+
+        return self._augmentation_clahe_ratio
+
+    @augmentation_clahe_ratio.setter
+    def augmentation_clahe_ratio(self, value: float):
+
+        if value < 0. or value >= 1:
+            msg = 'Value of test data set ratio must be positive and less than 1!'
+            raise ValueError(msg)
+
+        self.__reset()
+        self._augmentation_clahe_ratio = value
 
     @property
     def augmentation_ops_list(self) -> tuple[DatasetAugmentation]:
@@ -326,23 +346,23 @@ class DataAdapter(object):
 
         self._df_paths = pd.read_csv(self.fn_csv, index_col=['index'])
 
-    def __loadImages(self) -> (np.ndarray, np.ndarray):
+    def __loadImages(self, df_img_paths, clahe_augmentation: bool = False) -> (np.ndarray, np.ndarray):
 
         col_names = ['PATH_TO_ORIGINAL_IMAGE', 'MASK']
 
         np_imgs = None
         np_masks = None
 
-        for _, row in self._df_paths[col_names].iterrows():
+        for _, row in df_img_paths[col_names].iterrows():
 
             # patchify source image
             fn_src = row[col_names[0]]
 
             with elapsed_timer('Patchifying source {}'.format(fn_src)):
+
                 src_img = opencv.imread(row[col_names[0]], opencv.IMREAD_COLOR)
 
-                # TODO fix this
-                if self.enhancement == True:
+                if clahe_augmentation:
                     src_img = getImageEqualization_CLAHE(src_img)
 
                 src_patches = impatchify.getPatches(
@@ -384,10 +404,27 @@ class DataAdapter(object):
             exit(-1)
 
         try:
-            np_imgs, np_masks = self.__loadImages()
+            clahe_augmentation = True if self._augmentation_ops_flg & DatasetAugmentation.CLAHE_EQUALIZATION_INPLACE.value else False
+            np_imgs, np_masks = self.__loadImages(self._df_paths, clahe_augmentation=clahe_augmentation)
         except IOError:
             exit(-1)
 
+        if self._augmentation_ops_flg & DatasetAugmentation.CLAHE_EQUALIZATION.value:
+
+            nsamples = int(self.augmentation_clahe_ratio * len(self._df_paths))
+
+            with elapsed_timer('Clahe augmentation (#nsamples={} from training data set)'.format(nsamples)):
+                df_paths_random = self._df_paths.sample(nsamples)
+
+                try:
+                    np_imgs_clahe, np_masks_clahe = self.__loadImages(df_paths_random, clahe_augmentation=True)
+                except IOError:
+                    exit(-1)
+
+                np_imgs = np.concatenate((np_imgs, np_imgs_clahe))
+                np_masks = np.concatenate((np_masks, np_masks_clahe))
+
+        # expand mask dimension
         np_masks = np.expand_dims(np_masks, axis=3)
 
         # split train and test data set
@@ -397,9 +434,9 @@ class DataAdapter(object):
         ds_train = tf.data.Dataset.from_tensor_slices((imgs, masks))
         ds_train = ds_train.cache()
 
-        if self.augmented_ratio > 0.:
+        if self.augmentation_ratio > 0.:
 
-            nsamples = int(len(ds_train) * self.augmented_ratio)
+            nsamples = int(len(ds_train) * self.augmentation_ratio)
 
             ds_train = ds_train.shuffle(buffer_size=len(ds_train))
             ds_train_aug = (ds_train.take(nsamples).cache())
@@ -462,14 +499,13 @@ if __name__ == '__main__':
     PATH_SIZE = 64
     PATH_OVERLAP_RATIO = .0
 
-    AUGMENTED_RATIO = .0
+    AUGMENTATION_RATIO = .0
     TEST_RATIO = .1
 
     da = DataAdapter(fn_csv=DATABASE_CSV_NAME,
                      patch_size=PATH_SIZE,
                      test_ratio=TEST_RATIO,
-                     augmented_ratio=AUGMENTED_RATIO
-                     )
+                     augmentation_ratio=AUGMENTATION_RATIO)
 
     with elapsed_timer('Creating datasets'):
         ds_training = da.getTrainingDataset()
