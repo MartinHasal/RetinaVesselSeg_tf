@@ -1,4 +1,3 @@
-import argparse
 import os
 
 import numpy as np
@@ -7,9 +6,8 @@ import matplotlib.pylab as plt
 
 from imblearn.metrics import classification_report_imbalanced
 
+from pipelines.args import cli_argument_parser
 from funcs.inference import predict, predictImg
-from funcs.losses import LossType
-from funcs.lr import LearningRateDecayType
 from funcs.train import trainSegmentationModel
 from models.unet import UNet
 from procs.adapter import DataAdapter, DatasetAugmentation
@@ -20,18 +18,18 @@ from utils.timer import elapsed_timer
 from utils.roc import AucRoc
 
 
-def getDatasets(db_name: str, patch_size: int = 128, overlap_ratio: float = .0, ds_test_ratio: float = .2,
-                augmentation_ratio: float = 0., augmentation_ratio_clahe: float = 0.,
-                augmentation_ops_list: list = (DatasetAugmentation.NONE,)) -> (np.ndarray, np.ndarray):
+def getDatasets(db_name: str, patch_size: int = 128, patch_overlap_ratio: float = .0, ds_test_ratio: float = .2,
+                ds_augmentation_ratio: float = 0., ds_augmentation_ratio_clahe: float = 0.,
+                ds_augmentation_ops: list = (DatasetAugmentation.NONE,)) -> (np.ndarray, np.ndarray):
 
     da = DataAdapter(
         fn_csv=db_name,
         patch_size=patch_size,
+        patch_overlap_ratio=patch_overlap_ratio,
         test_ratio=ds_test_ratio,
-        patch_overlap_ratio=overlap_ratio,
-        augmentation_ratio=augmentation_ratio,
-        augmentation_clahe_ratio=augmentation_ratio_clahe,
-        augmentation_ops_list=augmentation_ops_list
+        augmentation_ratio=ds_augmentation_ratio,
+        augmentation_clahe_ratio=ds_augmentation_ratio_clahe,
+        augmentation_ops_list=ds_augmentation_ops
     )
 
     ds_train = da.getTrainingDataset()
@@ -95,108 +93,26 @@ plt.imshow(predicted_prob,cmap='gray')
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser()
-
-    # add arguments
-    parser.add_argument('--db_csv',
-                        metavar='CSV_FILE',
-                        type=str,
-                        default='dataset.csv',
-                        required=False)
-
-    parser.add_argument('--output_model_path',
-                        metavar='PATH',
-                        required=False)
-
-    parser.add_argument('--output_model_name',
-                        metavar='MODEL_NAME',
-                        default='unet_vgg16',
-                        required=False)
-
-    parser.add_argument('--patch_size',
-                        metavar='PATCH_SIZE',
-                        default=128,
-                        required=False)
-
-    parser.add_argument('--patch_overlap_ratio',
-                        metavar='PATCH_OVERLAP_RATIO',
-                        default=.5,
-                        required=False)
-
-    parser.add_argument('--ds_augmented_ratio',
-                        metavar='AUGMENTED_RATIO',
-                        default=.5,
-                        required=False)
-
-    parser.add_argument('--clahe_augmentation_ratio',
-                        metavar='CLAHE_AUGMENTATION_RATIO',
-                        default=.1,
-                        required=False)
-
-    parser.add_argument('--ds_test_ratio',
-                        metavar='TEST_DATASET_RATIO',
-                        default=.1,
-                        required=False)
-
-    parser.add_argument('--batch_size',
-                        metavar='BATCH_SIZE',
-                        default=32,
-                        required=False)
-
-    parser.add_argument('--nepochs',
-                        metavar='NUMBER_OF_EPOCHS',
-                        default=30,
-                        required=False)
-
-    parser.add_argument('--loss_type',
-                        metavar='LOSS_FUNCTION_TYPE',
-                        type=LossType,
-                        choices=LossType,
-                        default=LossType.CROSS_ENTROPY,
-                        required=False)
-
-    parser.add_argument('--lr_decay_type',
-                        metavar='LEARNING_RATE_DECAY_TYPE',
-                        type=LearningRateDecayType,
-                        choices=LearningRateDecayType,
-                        default=LearningRateDecayType.WARMUP_EXPONENTIAL_DECAY,
-                        required=False)
-
-    args = parser.parse_args()
-
-    # data set builder settings
-    DATABASE_CSV_NAME = args.db_csv
-
-    PATCH_SIZE = args.patch_size
-    PATCH_OVERLAP_RATIO = args.patch_overlap_ratio
-
-    AUGMENTED_RATIO = args.ds_augmented_ratio
-    DS_TEST_RATIO = args.ds_test_ratio
-
-    AUGMENTATION_RATIO_CLAHE = args.clahe_augmentation_ratio
-
-    # NN settings
-    IMG_SHAPE = (PATCH_SIZE, PATCH_SIZE, 3)
-    NCLASSES = 2
-
-    BATCH_SIZE = args.batch_size
-    NEPOCHS = args.nepochs
-
-    LOSS_TYPE = args.loss_type
-    LR_DECAY_TYPE = args.lr_decay_type
+    kwargs = cli_argument_parser()
 
     # pipeline running
 
     with elapsed_timer('Creating datasets'):
 
-        ds_train, ds_test = getDatasets(DATABASE_CSV_NAME,
-                                        patch_size=PATCH_SIZE,
-                                        overlap_ratio=PATCH_OVERLAP_RATIO,
-                                        ds_test_ratio=DS_TEST_RATIO,
-                                        augmentation_ratio=AUGMENTED_RATIO,
-                                        augmentation_ratio_clahe=AUGMENTATION_RATIO_CLAHE)
+        ds_train, ds_test = getDatasets(
+            db_name=kwargs['db_name'],
+            patch_size=kwargs['patch_size'],
+            patch_overlap_ratio=kwargs['patch_overlap_ratio'],
+            ds_test_ratio=kwargs['ds_test_ratio'],
+            ds_augmentation_ratio=kwargs['ds_augmentation_ratio'],
+            ds_augmentation_ratio_clahe=kwargs['clahe_augmentation_ratio'],
+            ds_augmentation_ops=kwargs['ds_augmentation_ops']
+        )
 
     with elapsed_timer('Build models'):
+
+        IMG_SHAPE = (kwargs['patch_size'], kwargs['patch_size'], 3)
+        NCLASSES = 2
 
         nn_unet_vgg16 = buildModel(IMG_SHAPE, NCLASSES, trainable_encoder=True)
 
@@ -206,10 +122,10 @@ if __name__ == '__main__':
                                          nclasses=NCLASSES,
                                          ds_train=ds_train,
                                          ds_val=ds_test,
-                                         nepochs=NEPOCHS,
-                                         batch_size=BATCH_SIZE,
-                                         loss_type=LOSS_TYPE,
-                                         decay=LR_DECAY_TYPE)
+                                         nepochs=kwargs['nepochs'],
+                                         batch_size=kwargs['batch_size'],
+                                         loss_type=kwargs['loss_type'],
+                                         decay=kwargs['lr_decay_type'])
 
     # plot training history
     df_history = pd.DataFrame(history.history)
@@ -229,14 +145,20 @@ if __name__ == '__main__':
 
     # plot predicting images
     plotPredictedImg(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
-    
+
     plotPredictedImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
     plotColorizedVessels(path_tst_img, predictImg, nn_model=nn_unet_vgg16)
     plotHistogramImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
 
     # saving model
-    if args.output_model_path is not None:
+    OUTPUT_MODEL_PATH = kwargs['output_model_path']
+    OUTPUT_MODEL_NAME = kwargs['output_model_name']
+
+    if OUTPUT_MODEL_PATH is not None:
         with elapsed_timer('Saving model'):
-            if not os.path.exists(args.output_model_path):
-                os.makedirs(args.output_model_path)
-            nn_unet_vgg16.save(os.path.join(args.output_model_path, args.output_model_name))
+
+            if not os.path.exists(OUTPUT_MODEL_PATH):
+                os.makedirs(OUTPUT_MODEL_PATH)
+
+            fn = os.path.join(OUTPUT_MODEL_PATH, OUTPUT_MODEL_NAME)
+            nn_unet_vgg16.save(os.path.join(OUTPUT_MODEL_PATH, OUTPUT_MODEL_NAME))
