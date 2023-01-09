@@ -55,7 +55,7 @@ if __name__ == '__main__':
         IMG_SHAPE = (kwargs['patch_size'], kwargs['patch_size'], 3)
         NCLASSES = 2
 
-        nn_unet_MobileNetV2 = buildModel(IMG_SHAPE, NCLASSES, trainable_encoder=True)
+        nn_unet_MobileNetV2 = buildModel(IMG_SHAPE, NCLASSES, trainable_encoder=kwargs['trainable_encoder'])
 
     with elapsed_timer('Training model'):
 

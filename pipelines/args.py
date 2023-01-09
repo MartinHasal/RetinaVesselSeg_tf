@@ -143,6 +143,11 @@ def cli_argument_parser() -> dict:
                         choices=_DatasetAugmentationOps_Helper,
                         required=False)
 
+    parser.add_argument('--model_trainable_encoder',
+                        metavar='True or False',
+                        default=False,
+                        required=False)
+
     args = parser.parse_args()
     lst_ops = process_augmentation_ops(args.ds_augmentation_ops) if args.ds_augmentation_ops is not None else [DatasetAugmentation.NONE]
 
@@ -159,7 +164,8 @@ def cli_argument_parser() -> dict:
         'loss_type': args.loss_type,
         'lr_decay_type': args.lr_decay_type,
         'clahe_augmentation_ratio': args.clahe_augmentation_ratio,
-        'ds_augmentation_ops': lst_ops
+        'ds_augmentation_ops': lst_ops,
+        'trainable_encoder': args.model_trainable_encoder
     }
 
     return kwargs
