@@ -424,6 +424,9 @@ class DataAdapter(object):
                 np_imgs = np.concatenate((np_imgs, np_imgs_clahe))
                 np_masks = np.concatenate((np_masks, np_masks_clahe))
 
+                del np_imgs_clahe, np_masks_clahe
+                gc.collect()
+
         # expand mask dimension
         np_masks = np.expand_dims(np_masks, axis=3)
 
@@ -486,6 +489,26 @@ class DataAdapter(object):
             self.__createDataset()
 
         return self._ds_test
+
+
+def getDatasets(db_name: str, patch_size: int = 128, patch_overlap_ratio: float = .0, ds_test_ratio: float = .2,
+                ds_augmentation_ratio: float = 0., ds_augmentation_ratio_clahe: float = 0.,
+                ds_augmentation_ops: list = (DatasetAugmentation.NONE,)) -> (np.ndarray, np.ndarray):
+
+    data_builder = DataAdapter(
+        fn_csv=db_name,
+        patch_size=patch_size,
+        patch_overlap_ratio=patch_overlap_ratio,
+        test_ratio=ds_test_ratio,
+        augmentation_ratio=ds_augmentation_ratio,
+        augmentation_clahe_ratio=ds_augmentation_ratio_clahe,
+        augmentation_ops_list=ds_augmentation_ops
+    )
+
+    ds_train = data_builder.getTrainingDataset()
+    ds_test = data_builder.getTestDataset()
+
+    return ds_train, ds_test
 
 
 # tests

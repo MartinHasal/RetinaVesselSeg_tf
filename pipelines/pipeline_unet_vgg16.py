@@ -10,32 +10,12 @@ from pipelines.args import cli_argument_parser
 from funcs.inference import predict, predictImg
 from funcs.train import trainSegmentationModel
 from models.unet import UNet
-from procs.adapter import DataAdapter, DatasetAugmentation
+from procs.adapter import getDatasets
 from utils.cmat import ConfusionMatrix
 from utils.plots import imshow, maskshow, plotTrainingHistory, plotColorizedVessels, plotPredictedImg
 from utils.plots import plotHistogramImgSlicer, plotPredictedImgSlicer
 from utils.timer import elapsed_timer
 from utils.roc import AucRoc
-
-
-def getDatasets(db_name: str, patch_size: int = 128, patch_overlap_ratio: float = .0, ds_test_ratio: float = .2,
-                ds_augmentation_ratio: float = 0., ds_augmentation_ratio_clahe: float = 0.,
-                ds_augmentation_ops: list = (DatasetAugmentation.NONE,)) -> (np.ndarray, np.ndarray):
-
-    da = DataAdapter(
-        fn_csv=db_name,
-        patch_size=patch_size,
-        patch_overlap_ratio=patch_overlap_ratio,
-        test_ratio=ds_test_ratio,
-        augmentation_ratio=ds_augmentation_ratio,
-        augmentation_clahe_ratio=ds_augmentation_ratio_clahe,
-        augmentation_ops_list=ds_augmentation_ops
-    )
-
-    ds_train = da.getTrainingDataset()
-    ds_test = da.getTestDataset()
-
-    return ds_train, ds_test
 
 
 def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16', trainable_encoder: bool = False):
@@ -145,8 +125,8 @@ if __name__ == '__main__':
 
     # plot predicting images
     plotPredictedImg(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
-
     plotPredictedImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
+
     plotColorizedVessels(path_tst_img, predictImg, nn_model=nn_unet_vgg16)
     plotHistogramImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
 
