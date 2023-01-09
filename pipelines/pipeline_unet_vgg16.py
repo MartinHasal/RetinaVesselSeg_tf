@@ -10,15 +10,16 @@ from procs.adapter import getDatasets
 from utils.plots import plotTrainingHistory, plotColorizedVessels, plotPredictedImg
 from utils.plots import plotHistogramImgSlicer, plotPredictedImgSlicer
 from utils.timer import elapsed_timer
+from utils.model import save_model
 
 
 def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16', trainable_encoder: bool = False):
 
     unet = UNet(input_shape, nclasses=nclasses, encoder_type=encoder_type, trainable_encoder=trainable_encoder)
-    nn_unet_vgg16 = unet.model
-    nn_unet_vgg16.summary()
+    nn_unet = unet.model
+    nn_unet.summary()
 
-    return nn_unet_vgg16
+    return nn_unet
 
 
 """ dev notes 
@@ -95,10 +96,5 @@ if __name__ == '__main__':
     OUTPUT_MODEL_NAME = kwargs['output_model_name']
 
     if OUTPUT_MODEL_PATH is not None:
-        with elapsed_timer('Saving model'):
-
-            if not os.path.exists(OUTPUT_MODEL_PATH):
-                os.makedirs(OUTPUT_MODEL_PATH)
-
-            fn = os.path.join(OUTPUT_MODEL_PATH, OUTPUT_MODEL_NAME)
-            nn_unet_vgg16.save(os.path.join(OUTPUT_MODEL_PATH, OUTPUT_MODEL_NAME))
+        with elapsed_timer('Saving model (UNetVGG16)'):
+            save_model(nn_unet_vgg16, OUTPUT_MODEL_PATH, OUTPUT_MODEL_NAME)
