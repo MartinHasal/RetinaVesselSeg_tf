@@ -1,9 +1,16 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
-from tensorflow.data import Dataset as TFDataset
+import matplotlib.pylab as plt
+
 from keras.engine.functional import Functional as KerasFunctional
+from imblearn.metrics import classification_report_imbalanced
+from tensorflow.data import Dataset as TFDataset
+
 from procs.impatch import impatchify
+from utils.cmat import ConfusionMatrix
+from utils.plots import imshow, maskshow
+from utils.roc import AucRoc
 
 
 def predict(nn_model: KerasFunctional, ds: tf.data.Dataset, batch_size: int = 32) -> [np.ndarray, np.ndarray]:
@@ -67,3 +74,37 @@ def predictImg(nn_model: KerasFunctional, img: np.ndarray, patch_size: int = 128
     # img_prob = np.abs(np.ones(img_labels.shape, dtype=np.float32) - img_labels - img_prob)
 
     return img_prob, img_labels
+
+
+def predictDataset(ds, nsamples_to_plot: int, nn_model) -> None:
+
+    y_prob, y_label = predict(nn_model, ds)
+
+    fig, axes = plt.subplots(nsamples_to_plot, 4, figsize=(8, 8))
+    for idx, ds_sample in enumerate(ds_test.take(nsamples_to_plot)):
+        imshow(ds_sample[0].numpy(), ax=axes[idx][0], title='Input image')
+        maskshow(ds_sample[1].numpy(), ax=axes[idx][1], title='Mask (true)')
+        maskshow(y_prob[idx], ax=axes[idx][2], title='Mask (pred. prob.f)')
+        maskshow(y_label[idx], ax=axes[idx][3], title='Mask (pred. label)')
+    fig.suptitle('Predictions on test data set')
+    fig.tight_layout()
+    plt.show()
+
+    # get ground true
+    y_true = np.concatenate([y for _, y in ds], axis=0).reshape(-1).astype(np.float32)
+
+    class_names = ['Background', 'Vessel']
+    cm = ConfusionMatrix(ds, y_label, class_names)
+    cm.plot(figsize=(4, 4), title_fontsize=14, label_fontsize=12, ticks_fontsize=10, value_size=8)
+
+    # print classification report (label)
+    print('Classification report (labels)')
+    print(classification_report_imbalanced(y_true, y_label.reshape(-1)))
+
+    # plot auc roc curve
+    auc_roc = AucRoc(y_true=y_true, y_pred=y_prob)
+    auc_roc.plot()
+    plt.show()
+
+    #
+    print('auc roc = {0:.4f}'.format(auc_roc.auc))

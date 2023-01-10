@@ -8,7 +8,6 @@ import seaborn as sns
 from PIL import Image
 
 
-
 def imshow(src: np.ndarray, ax=None, title: str = None, figsize: tuple = None, to_bgra: bool = True) -> None:
 
     # matplot lib works with rgb order of channel so input image needs conversion
@@ -67,6 +66,7 @@ def convertProbability(img_prob: np.ndarray, img_labels: np.ndarray) -> np.ndarr
     # convert to P(X | y = 1)
     return np.abs(np.ones(img_labels.shape, dtype=np.float32) - img_labels - img_prob)
 
+
 def plotColorizedVessels(fn_img: str, predictImg, nn_model) -> None:
     
     img = opencv.imread(fn_img, opencv.IMREAD_COLOR)
@@ -102,14 +102,13 @@ def plotPredictedImg(fn_img: str, fn_label: str, predictImg, nn_model) -> None:
     plt.show()
 
     
-def plotPredictedImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model) -> None:    
+def plotPredictedImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model):
 
     img = opencv.imread(fn_img, opencv.IMREAD_COLOR)
     predicted_prob, predicted_label = predictImg(nn_model, img)
     predicted_prob = convertProbability(predicted_prob, predicted_label)
     init_prob = np.mean(predicted_prob)
-    
-    
+
     # visualize
     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
     fig.subplots_adjust(bottom=0.25)
@@ -127,8 +126,7 @@ def plotPredictedImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model) -> 
         valmax=predicted_prob.max(),
         valinit=init_prob,
     )
-    
-    
+
     def update(label_probability):
         # The val passed to a callback by the RangeSlider will
         # be a tuple of (min, max)
@@ -138,32 +136,26 @@ def plotPredictedImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model) -> 
         # (thresh, im_bw) = opencv.threshold(predicted_prob, label_probability, 1, opencv.THRESH_BINARY)
         im_bw = predicted_prob.copy()
         im_bw[im_bw <= label_probability] = 0
-        
-    
+
         axs[0].imshow(img)
         axs[1].imshow(im_bw,  cmap='gray')
     
         # Redraw the figure to ensure it updates
         fig.canvas.draw_idle()
 
-
     slider.on_changed(update)
     plt.show() 
     
-    return fig, slider_ax, slider # https://github.com/matplotlib/matplotlib/issues/3105/
+    return fig, slider_ax, slider  # https://github.com/matplotlib/matplotlib/issues/3105/
 
 
-
-    
-def plotHistogramImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model) -> None:
-    
+def plotHistogramImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model):
 
     img = opencv.imread(fn_img, opencv.IMREAD_COLOR)
-    img = opencv.cvtColor(img, opencv.COLOR_BGR2RGB) # ZEPTEJ SE MARYHO PROC DO PREDICTED JDE RGB???
+    img = opencv.cvtColor(img, opencv.COLOR_BGR2RGB)
     predicted_prob, predicted_label = predictImg(nn_model, img)
     predicted_prob = convertProbability(predicted_prob, predicted_label)
-    
-    
+
     # visualize
     fig, axs = plt.subplots(1, 2, figsize=(20, 10))
     fig.subplots_adjust(bottom=0.25)
@@ -181,8 +173,7 @@ def plotHistogramImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model) -> 
     # Create the Vertical lines on the histogram
     lower_limit_line = axs[1].axvline(slider.val[0], color='k')
     upper_limit_line = axs[1].axvline(slider.val[1], color='k')
-    
-    
+
     def update(val):
         # The val passed to a callback by the RangeSlider will
         # be a tuple of (min, max)
@@ -198,8 +189,7 @@ def plotHistogramImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model) -> 
         # Redraw the figure to ensure it updates
         fig.canvas.draw_idle()
 
-
     slider.on_changed(update)
     plt.show() 
     
-    return fig, slider_ax, slider # https://github.com/matplotlib/matplotlib/issues/3105/   
+    return fig, slider_ax, slider  # https://github.com/matplotlib/matplotlib/issues/3105/

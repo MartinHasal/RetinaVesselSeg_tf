@@ -1,23 +1,16 @@
 import gc
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-import re
 
 import tensorflow as tf
 
-from keras.layers import Activation, BatchNormalization, Concatenate, Conv2D, Conv2DTranspose, Dropout, Input
-from keras.engine.functional import Functional as KerasFunctional
 from keras.models import Model as KerasModel
 
 
-
-
-
-
-
 class UnetMobileNetV2(object):
+
     def __init__(self,
-                 input_shape: tuple[int, int],
+                 input_shape: tuple[int, int, int],
                  nclasses: int,
                  encoder_type: str = 'MobileNetV2',
                  trainable_encoder: bool = False):
@@ -67,18 +60,16 @@ class UnetMobileNetV2(object):
             self.build()
 
         return self._nn_model
-    
-    
-    
+
     @staticmethod
     def upsample(filters, size, name):
-      return tf.keras.Sequential([
+
+        return tf.keras.Sequential([
              tf.keras.layers.Conv2DTranspose(filters, size, strides=2, padding='same'),
              tf.keras.layers.BatchNormalization(),
              tf.keras.layers.ReLU()
              ], name=name)
 
-       
     def __buildUnet_MobileNetV2(self) -> KerasModel:
         
         base_model = tf.keras.applications.MobileNetV2(input_shape=self._input_shape,
@@ -123,20 +114,17 @@ class UnetMobileNetV2(object):
             concat = tf.keras.layers.Concatenate(name='expand_{}'.format(idx))
             x = concat([x, skip])
     
-          # This is the last layer of the model
+        # This is the last layer of the model
         last = tf.keras.layers.Conv2DTranspose(
               self._nclasses, 3, strides=2,
               activation='softmax',
-              padding='same')  #64x64 -> 128x128
+              padding='same')  # 64x64 -> 128x128
     
         x = last(x)
         
         self._nn_model = tf.keras.Model(inputs=inputs, outputs=x, name='UNet_MobileNetV2')
         return self._nn_model
 
-
-    
-    
     def build(self) -> KerasModel:
 
         if self._encoder_type == 'MobileNetV2':
@@ -145,12 +133,6 @@ class UnetMobileNetV2(object):
             NotImplementedError('An UNet implementation just supports only MobileNetV2 encoder.')
 
         return self._nn_model
-
-
-
-
-
-
 
 
 # tests
