@@ -81,7 +81,7 @@ def predictDataset(ds, nsamples_to_plot: int, nn_model) -> None:
     y_prob, y_label = predict(nn_model, ds)
 
     fig, axes = plt.subplots(nsamples_to_plot, 4, figsize=(8, 8))
-    for idx, ds_sample in enumerate(ds_test.take(nsamples_to_plot)):
+    for idx, ds_sample in enumerate(ds.take(nsamples_to_plot)):
         imshow(ds_sample[0].numpy(), ax=axes[idx][0], title='Input image')
         maskshow(ds_sample[1].numpy(), ax=axes[idx][1], title='Mask (true)')
         maskshow(y_prob[idx], ax=axes[idx][2], title='Mask (pred. prob.f)')
