@@ -392,9 +392,13 @@ if __name__ == "__main__":
         if mask_path.split('.')[-1] == 'gif':
             pil_img = Image.open(mask_path)
             mask = np.array(pil_img)
+            # opencv does not writes gif
+            mask_name = mask_name[:-4] + '.jpg'
+            cv2.imwrite(os.path.join(PATH_CROPPED, mask_name), cropped_mask)
         elif mask_path.split('.')[-1] == 'ppm':
             # big issue is that opencv nor PIL is able to store image in .ppm
-            cv2.imwrite(os.path.join(PATH_CROPPED, mask_name[:-4]) + '.pgm', cropped_mask,)
+            mask_name = mask_name[:-4] + '.pgm'
+            cv2.imwrite(os.path.join(PATH_CROPPED, mask_name), cropped_mask,)
         else:
             cv2.imwrite(os.path.join(PATH_CROPPED, mask_name), cropped_mask)
         
