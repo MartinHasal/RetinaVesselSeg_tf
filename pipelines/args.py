@@ -66,6 +66,17 @@ def process_augmentation_ops(ds_augmentation_ops) -> list:
 
     return lst_ops
 
+class Range(object):
+
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+        
+    def __eq__(self, other):
+        return self.start <= other <= self.end
+        
+    def __repr__(self):
+        return '{0} - {1}'.format(self.start, self.end)
 
 def cli_argument_parser() -> dict:
 
@@ -90,37 +101,48 @@ def cli_argument_parser() -> dict:
     parser.add_argument('--patch_size',
                         metavar='PATCH_SIZE',
                         default=128,
-                        required=False)
+                        required=False,
+                        type=int)
 
     parser.add_argument('--patch_overlap_ratio',
                         metavar='PATCH_OVERLAP_RATIO',
                         default=.5,
-                        required=False)
+                        required=False,
+                        type=float,
+                        choices=[Range(0.0, 1.0)])
 
     parser.add_argument('--ds_augmentation_ratio',
                         metavar='AUGMENTATION_RATIO',
                         default=.5,
-                        required=False)
+                        required=False,
+                        type=float,
+                        choices=[Range(0.0, 1.0)])
 
     parser.add_argument('--clahe_augmentation_ratio',
                         metavar='CLAHE_AUGMENTATION_RATIO',
                         default=.1,
-                        required=False)
+                        required=False,
+                        type=float,
+                        choices=[Range(0.0, 1.0)])
 
     parser.add_argument('--ds_test_ratio',
                         metavar='TEST_DATASET_RATIO',
                         default=.1,
-                        required=False)
+                        required=False,
+                        type=float,
+                        choices=[Range(0.0, 1.0)])
 
     parser.add_argument('--batch_size',
                         metavar='BATCH_SIZE',
                         default=32,
-                        required=False)
+                        required=False,
+                        type=int)
 
     parser.add_argument('--nepochs',
                         metavar='NUMBER_OF_EPOCHS',
                         default=30,
-                        required=False)
+                        required=False,
+                        type=int)
 
     parser.add_argument('--loss_type',
                         metavar='LOSS_FUNCTION_TYPE',
