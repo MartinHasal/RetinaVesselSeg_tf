@@ -4,3 +4,4 @@ dataset_cropped/
 *.csv
 results/
 __pycache__
+models/trained
