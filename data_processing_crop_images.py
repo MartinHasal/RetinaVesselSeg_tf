@@ -144,10 +144,7 @@ def crop_image_mask_from_gray(img, mask, tol=7):
             mask = mask[np.ix_(keep.any(1),keep.any(0))]
     #         print(img.shape)
         return img, mask
-    
-
-
-
+        
 
 def get_files(path, endswith=".jpg"):
     # load images
@@ -189,7 +186,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=prog_desc)
     parser.version = '1.2'
     # Add the arguments
-    parser.add_argument('-threshold', required=False, type=int, choices=range(0,256),
+    parser.add_argument('-crop_val', required=False, type=int, choices=range(0,256),
                    metavar="[0-255]", 
                    help='Threshold (0-255) denoting at what grayscale black edges from images \
                         are croppped. Default is 30.', default=30)   
@@ -391,7 +388,7 @@ if __name__ == "__main__":
         _ , img_name = os.path.split(img_path)
         _ , mask_name = os.path.split(mask_path)
         img, mask = read_img_mask(img_path, mask_path)
-        cropped_img, cropped_mask = crop_image_mask_from_gray(img, mask, tol=args.threshold)
+        cropped_img, cropped_mask = crop_image_mask_from_gray(img, mask, tol=args.crop_val)
         
         # saving process 
         cv2.imwrite(os.path.join(PATH_CROPPED, img_name), cropped_img)
