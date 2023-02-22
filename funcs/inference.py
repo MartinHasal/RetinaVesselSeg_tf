@@ -161,7 +161,7 @@ def predictListOfFiles(nn_model: KerasFunctional, images_paths: list, patch_size
             # are only two categories their sum is 1 for every pixel
             # and as probability we can you any of them
             # as important is to segment vessels [:,:,1] is used
-            print(f'Processing image {k}/{len(images_paths)}')
+            print(f'Processing image {k+1}/{len(images_paths)}')
             predictions_smooth = predict_img_with_smooth_windowing(
                 img,
                 window_size = patch_size,
