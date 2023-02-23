@@ -7,9 +7,6 @@ from matplotlib.widgets import Slider, RangeSlider
 import seaborn as sns
 from PIL import Image
 
-#from funcs.inference import predictListOfFiles
-
-
 
 def imshow(src: np.ndarray, ax=None, title: str = None, figsize: tuple = None, to_bgra: bool = True) -> None:
 
