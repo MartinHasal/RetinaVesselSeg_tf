@@ -293,8 +293,9 @@ def plotListofImages(predictions: dict[str, dict[np.ndarray,np.ndarray, np.ndarr
             plt.imshow(clean_image(img2, percentage=clean_threshold, prob_threshold=prob_threshold))            
             plt.title(f'Mask - probability. \n Treshold (area to keep) {clean_threshold},\n Probability to draw {prob_threshold}')
         else:        
-            plt.sca(axs[1]); 
-            plt.imshow(item['mask_prob']); plt.title('Mask - probability')
+            plt.sca(axs[1]) 
+            plt.imshow(item['mask_prob'])
+            plt.title('Mask - probability')
         # mask label
         if clean_threshold:
             img3 = item['mask_label'] * 255
@@ -303,8 +304,9 @@ def plotListofImages(predictions: dict[str, dict[np.ndarray,np.ndarray, np.ndarr
             plt.imshow(clean_image(img3, percentage=clean_threshold)); 
             plt.title(f'Mask - probability.\n Treshold {clean_threshold}')
         else:        
-            plt.sca(axs[2]); 
-            plt.imshow(item['mask_label']); plt.title('Mask - label')
+            plt.sca(axs[2]) 
+            plt.imshow(item['mask_label'])
+            plt.title('Mask - label')
         plt.show()
         
     
