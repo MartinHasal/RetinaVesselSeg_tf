@@ -67,15 +67,24 @@ def convertProbability(img_prob: np.ndarray, img_labels: np.ndarray) -> np.ndarr
     return np.abs(np.ones(img_labels.shape, dtype=np.float32) - img_labels - img_prob)
 
 
-def plotColorizedVessels(fn_img: str, predictImg, nn_model) -> None:
+def plotColorizedVessels(fn_img: str, predictImg, nn_model, blended = np.zeros([1,1])) -> None:
     
     img = opencv.imread(fn_img, opencv.IMREAD_COLOR)
     img = opencv.cvtColor(img, opencv.COLOR_BGR2RGB)
-    predicted_prob, predicted_label = predictImg(nn_model, img)
+    
+    if img.shape[:2] == blended.shape:
+        vessels = opencv.bitwise_or(img, img, mask=blended) 
+    else:
+        predicted_prob, predicted_label = predictImg(nn_model, img)
+        vessels = opencv.bitwise_or(img, img, mask=predicted_label)     
+       
+    # Combine the two images using weighted addition - manual parameters
+    #comb = opencv.addWeighted(img, 1-alpha, vessels, alpha, 0)
+    comb = opencv.addWeighted(img, 0.95, vessels, 1, 0)   
     
     plt.figure(figsize=(10,10))
-    plt.imshow(opencv.bitwise_or(img, img, mask=predicted_label))
-    plt.title('Colorized mask by original image')
+    plt.imshow(comb)
+    plt.title('Colorized mask in original image')
     plt.show()
     
 
@@ -193,3 +202,111 @@ def plotHistogramImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model):
     plt.show() 
     
     return fig, slider_ax, slider  # https://github.com/matplotlib/matplotlib/issues/3105/
+
+def clean_image(img_gray: np.ndarray, percentage:float = 5e-4, prob_threshold:float = 0.5,  plot:bool = False):
+    """ 
+    function to remove small unconected white spaces from 
+    mask image 
+    Attribute:
+        binary_threshold - the level of gray from which the image is separated into 
+            two domains
+        percentage - all areas with size smaller than some percent 
+        of image are deleted
+        prob_threshold : in the case of mask_prob visualize only pixels with 
+            probabilty higher than threshold
+        plot - Visualize the result
+    """   
+    
+    # convert to binary by thresholding, due to np.argmax mask_image is binary, e.g., 
+    # contains only 0-black, 255-white vessels, but it has to multiplied by 255 and 
+    # retype to np.unit8, otherwise cv2 does not accept it 
+    # !!! This threshold is works only with probability label (mask_prob) which is in 
+    # interval 0-255, binary label (mask_label) is only zero or 255 - in this case
+    # the prob_threshold does not change anything, but we do not have to 
+    # write two functions
+    threshold = int(255 * prob_threshold)
+    ret, binary_map = opencv.threshold(img_gray, threshold,255, opencv.THRESH_BINARY)
+
+    # find connected components
+    nlabels, labels, stats, centroids = opencv.connectedComponentsWithStats(binary_map, 8, opencv.CV_32S)
+
+    #get CC_STAT_AREA component as stats[label, COLUMN] 
+    areas = stats[1:,opencv.CC_STAT_AREA]
+    
+    # treshold is the size in pixels and it is percent of image
+    treshold = round(img_gray.shape[0]*img_gray.shape[1]*percentage)
+
+    result = np.zeros((labels.shape), np.uint8)
+
+    for i in range(0, nlabels - 1):
+        #print(areas[i])
+        if areas[i] >= treshold:   #keep
+            result[labels == i + 1] = 1
+    
+    if plot:
+        import matplotlib.pyplot as plt
+        # Create a figure and axis
+        fig, ax = plt.subplots(1, 2)
+
+        # Plot the first image
+        ax[0].imshow(binary_map)
+        ax[0].axis('off')
+        ax[0].set_title("Binary image - Original", fontsize=14)
+
+        # Plot the second image
+        ax[1].imshow(result)
+        ax[1].axis('off')
+        ax[1].set_title(f"Result for treshold {treshold}", fontsize=14)
+
+        # Show the plot
+        plt.show()
+    return result
+
+def plotListofImages(predictions: dict[str, dict[np.ndarray,np.ndarray, np.ndarray]], clean_threshold = 0, prob_threshold=0.7) -> None:
+    """
+    Plots the dict of predicted images
+    Parameters
+    ----------
+    preditions : dict from inference.predictListOfFiles
+    clean_threshold : all areas with size smaller than some percent 
+        of image are deleted
+    prob_threshold : in the case of mask_prob visualize only pixels with 
+        probabilty higher than threshold
+        
+    For more details about parameters see clean_image()
+        
+    Returns
+    -------
+    Visualization - original visualalisation or cleaned images     
+    """
+       
+    for key, item in predictions.items(): 
+        fig, axs = plt.subplots(nrows=1,ncols=3)
+        # plot original image
+        plt.sca(axs[0]); 
+        plt.imshow(opencv.cvtColor(item['image'], opencv.COLOR_BGR2RGB)); plt.title('Original image')
+        # plot mask - probability
+        if clean_threshold:
+            img2 = item['mask_prob'] * 255
+            img2 = img2.astype(np.uint8)
+            plt.sca(axs[1]) 
+            plt.imshow(clean_image(img2, percentage=clean_threshold, prob_threshold=prob_threshold))            
+            plt.title(f'Mask - probability. \n Treshold (area to keep) {clean_threshold},\n Probability to draw {prob_threshold}')
+        else:        
+            plt.sca(axs[1]) 
+            plt.imshow(item['mask_prob'])
+            plt.title('Mask - probability')
+        # mask label
+        if clean_threshold:
+            img3 = item['mask_label'] * 255
+            img3 = img3.astype(np.uint8)
+            plt.sca(axs[2]) 
+            plt.imshow(clean_image(img3, percentage=clean_threshold)); 
+            plt.title(f'Mask - probability.\n Treshold {clean_threshold}')
+        else:        
+            plt.sca(axs[2]) 
+            plt.imshow(item['mask_label'])
+            plt.title('Mask - label')
+        plt.show()
+        
+    

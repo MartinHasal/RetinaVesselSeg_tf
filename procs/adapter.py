@@ -125,6 +125,36 @@ def read_mask(filename):
     img = img.astype(np.uint8)
 
     return img
+    
+def crop_image_from_gray(img, tol=7):
+    """ Function removes the black edges from image,
+        the exactly the same cut must be done on mask image.
+        Why, original images contains too many black areas,
+        especially in corners. Function works on cutting of grayscale images.
+        Attributes:
+            img : original images
+            tol : treshold under which is dark region in grayscale 
+                  from boundaries is considered as black
+        """
+    if img.ndim ==2: # check grayscale
+        keep = img > tol
+        img = img[np.ix_(keep.any(1),keep.any(0))]
+        return img, keep
+    
+    if img.ndim==3:
+        img_gray = opencv.cvtColor(img, opencv.COLOR_RGB2GRAY)
+        keep = img_gray > tol
+        check_black = img[:,:,0][np.ix_(keep.any(1),keep.any(0))].shape[0]
+        
+        if (check_black != 0): # image is too dark so that we crop out everything,
+            img1=img[:,:,0][np.ix_(keep.any(1),keep.any(0))]
+            img2=img[:,:,1][np.ix_(keep.any(1),keep.any(0))]
+            img3=img[:,:,2][np.ix_(keep.any(1),keep.any(0))]
+    #         print(img1.shape,img2.shape,img3.shape)
+            img = np.stack([img1,img2,img3],axis=-1)
+            
+    #         print(img.shape)
+        return img, keep
 
 
 class DataAdapter(object):
@@ -138,8 +168,9 @@ class DataAdapter(object):
                  augmentation_ops_list: Union[tuple[DatasetAugmentation], list[DatasetAugmentation]] = (DatasetAugmentation.ALL,),
                  augmentation_clahe_ratio: float = .0,
                  contrast_range: Union[tuple[float, float], list[float, float]] = (0.5, 1.4),
-                 brightness_delta: Union[tuple[float, float], list[float, float]] = (-0.1, 0.3)):
-
+                 brightness_delta: Union[tuple[float, float], list[float, float]] = (-0.1, 0.3),
+                 crop_img_val: int = 0):
+        
         self._df_paths = None
 
         self._ds_training = None
@@ -173,6 +204,9 @@ class DataAdapter(object):
 
         self._fn_csv = None
         self.fn_csv = fn_csv
+        
+        self._crop_img_val = 0
+        self.crop_img_val = crop_img_val
 
     @property
     def fn_csv(self):
@@ -346,7 +380,7 @@ class DataAdapter(object):
 
         self._df_paths = pd.read_csv(self.fn_csv, index_col=['index'])
 
-    def __loadImages(self, df_img_paths, clahe_augmentation: bool = False) -> (np.ndarray, np.ndarray):
+    def __loadImages(self, df_img_paths, clahe_augmentation: bool = False, crop_img_val:int = 0) -> (np.ndarray, np.ndarray):
 
         col_names = ['PATH_TO_ORIGINAL_IMAGE', 'MASK']
 
@@ -361,7 +395,10 @@ class DataAdapter(object):
             with elapsed_timer('Patchifying source {}'.format(fn_src)):
 
                 src_img = opencv.imread(row[col_names[0]], opencv.IMREAD_COLOR)
-
+                
+                if crop_img_val:
+                    src_img, keep = crop_image_from_gray(src_img, crop_img_val) 
+                
                 if clahe_augmentation:
                     src_img = getImageEqualization_CLAHE(src_img)
 
@@ -380,7 +417,10 @@ class DataAdapter(object):
 
             with elapsed_timer('Patchifying mask {}'.format(fn_mask)):
                 mask_img = read_mask(row[col_names[1]])
-
+                
+                if crop_img_val:
+                    mask_img = mask_img[np.ix_(keep.any(1),keep.any(0))]
+                   
                 mask_patches = impatchify.getPatches(
                     imgs=[mask_img],
                     patch_size=self.patch_size,
@@ -389,6 +429,7 @@ class DataAdapter(object):
 
             np_patches = np.array(mask_patches)
             del mask_img
+            if crop_img_val: del keep
             np_masks = np.vstack([np_masks, np_patches]) if np_masks is not None else np_patches
 
         # invoke garbage collector
@@ -405,7 +446,8 @@ class DataAdapter(object):
 
         try:
             clahe_augmentation = True if self._augmentation_ops_flg & DatasetAugmentation.CLAHE_EQUALIZATION_INPLACE.value else False
-            np_imgs, np_masks = self.__loadImages(self._df_paths, clahe_augmentation=clahe_augmentation)
+            crop_img_val = self.crop_img_val if self.crop_img_val else False
+            np_imgs, np_masks = self.__loadImages(self._df_paths, clahe_augmentation=clahe_augmentation, crop_img_val=crop_img_val)
         except IOError:
             exit(-1)
 
@@ -493,7 +535,7 @@ class DataAdapter(object):
 
 def getDatasets(db_name: str, patch_size: int = 128, patch_overlap_ratio: float = .0, ds_test_ratio: float = .2,
                 ds_augmentation_ratio: float = 0., ds_augmentation_ratio_clahe: float = 0.,
-                ds_augmentation_ops: list = (DatasetAugmentation.NONE,)) -> (np.ndarray, np.ndarray):
+                ds_augmentation_ops: list = (DatasetAugmentation.NONE,), crop_img_val:int = 0) -> (np.ndarray, np.ndarray):
 
     data_builder = DataAdapter(
         fn_csv=db_name,
@@ -502,7 +544,9 @@ def getDatasets(db_name: str, patch_size: int = 128, patch_overlap_ratio: float 
         test_ratio=ds_test_ratio,
         augmentation_ratio=ds_augmentation_ratio,
         augmentation_clahe_ratio=ds_augmentation_ratio_clahe,
-        augmentation_ops_list=ds_augmentation_ops
+        augmentation_ops_list=ds_augmentation_ops,
+        crop_img_val=crop_img_val
+        
     )
 
     ds_train = data_builder.getTrainingDataset()

@@ -17,6 +17,8 @@ All images will be saved in dataframe with structure
 NAME, DATASET_NAME, PATH_TO_ORIGINAL_IMAGE, MASK
 
 mulptiple masks will be stored again under same name
+
+# run data_processing_crop_images -s
 """
 
 
@@ -142,10 +144,7 @@ def crop_image_mask_from_gray(img, mask, tol=7):
             mask = mask[np.ix_(keep.any(1),keep.any(0))]
     #         print(img.shape)
         return img, mask
-    
-
-
-
+        
 
 def get_files(path, endswith=".jpg"):
     # load images
@@ -182,11 +181,16 @@ class VerboseStoreDataset(argparse.Action):
 #################################
 if __name__ == "__main__":
     
-    prog_desc = "Load data from datasets folder \n and creates csv with path to image and label"
+    prog_desc = "Load images from datasets folder, crops \n and creates csv with path to image and label"
 
     parser = argparse.ArgumentParser(description=prog_desc)
     parser.version = '1.2'
     # Add the arguments
+    parser.add_argument('-crop_val', required=False, type=int, choices=range(0,256),
+                   metavar="[0-255]", 
+                   help='Threshold (0-255) denoting at what grayscale black edges from images \
+                        are croppped. Default is 30.', default=30)   
+                        
     parser.add_argument('--path',
                         #metavar='path',
                         action='store',
@@ -384,7 +388,7 @@ if __name__ == "__main__":
         _ , img_name = os.path.split(img_path)
         _ , mask_name = os.path.split(mask_path)
         img, mask = read_img_mask(img_path, mask_path)
-        cropped_img, cropped_mask = crop_image_mask_from_gray(img, mask, tol=7)
+        cropped_img, cropped_mask = crop_image_mask_from_gray(img, mask, tol=args.crop_val)
         
         # saving process 
         cv2.imwrite(os.path.join(PATH_CROPPED, img_name), cropped_img)
@@ -392,6 +396,7 @@ if __name__ == "__main__":
         if mask_path.split('.')[-1] == 'gif':
             pil_img = Image.open(mask_path)
             mask = np.array(pil_img)
+            cv2.imwrite(os.path.join(PATH_CROPPED, mask_name[:-4]) + '.jpg', cropped_mask)
         elif mask_path.split('.')[-1] == 'ppm':
             # big issue is that opencv nor PIL is able to store image in .ppm
             cv2.imwrite(os.path.join(PATH_CROPPED, mask_name[:-4]) + '.pgm', cropped_mask,)
@@ -401,9 +406,9 @@ if __name__ == "__main__":
         
         
         df_cropped.iloc[i] = [img_name, 
-                                  dataset_name,
-                                  os.path.join(PATH_CROPPED, img_name),
-                                  os.path.join(PATH_CROPPED, mask_name)]
+                              dataset_name,
+                              os.path.join(PATH_CROPPED, img_name),
+                              os.path.join(PATH_CROPPED, mask_name)]
     
     
     
@@ -413,3 +418,11 @@ if __name__ == "__main__":
             df_cropped.reset_index().to_csv(args.csv, index=False)
         else: 
             df_cropped.reset_index().to_csv('data_paths_cropped.csv', index=False)
+            
+            
+            
+""" # dev notes 
+img, mask = read_img_mask(df_stare.PATH_TO_ORIGINAL_IMAGE[1].values[0], df_stare.PATH_TO_ORIGINAL_IMAGE[1].values[0])
+
+
+"""

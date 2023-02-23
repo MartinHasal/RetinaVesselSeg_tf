@@ -13,6 +13,9 @@ class LearningRateDecayType(Enum):
 
 def ScheduleWarmupExponentialDecay(nepochs: int, info: bool = False):
 
+    assert nepochs > 7 and isinstance(nepochs, int), \
+            f"Number of epochs should be greater than 7, got: {nepochs}, use exponential decay rather"
+    
     LR_START = 0.00001
     LR_MAX = 0.00002
     LR_MIN = 0.00001
@@ -29,8 +32,7 @@ def ScheduleWarmupExponentialDecay(nepochs: int, info: bool = False):
             lr = (LR_MAX - LR_MIN) * LR_EXP_DECAY ** (epoch - LR_RAMPUP_EPOCHS - LR_SUSTAIN_EPOCHS) + LR_MIN
         return lr
 
-    assert nepochs > 7 and isinstance(nepochs, int), \
-        f"Number of epochs must be greater than 7, got: {nepochs}, You stack in rising lr"
+    
 
     rng = range(nepochs)
     y = [lrfn(x) for x in rng]
