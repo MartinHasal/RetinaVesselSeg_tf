@@ -24,8 +24,8 @@ After that, add datasets to root folder `RetinaVesselSeg_tf`
 2. Download the data to `.\datasets` folder
 3. run command  `python .\data_processing.py -s` in main folder. It creates `data_paths.csv` file with structure `NAME, DATASET_NAME, PATH_TO_ORIGINAL_IMAGE, MASK`  
 Alternative name of csv,e.g., *data.csv*, is also possible by  `python .\data_processing.py -c 'data.csv'`.
-By default `data_paths.csv` does not contain HRF dataset (3504 x 2336, creates huge dataset in pathed algorithm) to paths. It can be add by `python .\data_processing.py -b` argument.
-4. In the folder run command `pipelines/pipeline_unet_vgg16.py --db_csv data_paths.csv`
+By default `data_paths.csv` does not contain HRF dataset (its high-resolutio 3504 x 2336, creates huge training dataset in pathed algorithm) to paths. It can be add by `python .\data_processing.py -b` argument.
+4. In the root folder run command `pipelines/pipeline_unet_vgg16.py --db_csv data_paths.csv`
 
 # Advanced description
 ## Dataset creation
@@ -38,7 +38,7 @@ Machine learning pipeline loads the dataset, reads the `PATH_TO_ORIGINAL_IMAGE` 
 ### Dataset crop
 We observed that dataset contains images with black edges around retinal images and such information is redundant and not necessary. Patching creates many black patches with no information for segmentation algorithm. Consequently, we decided to crop such images to the retinal boundary. It can be done 
 1. online during dataset loading by argument `--crop_val 21` in `pipelines/pipeline_unet_vgg16.py --db_csv data_paths.csv`. The value 21 is the level of gray in grayscale image, which is considered as black and edges with lower value are removed.
-2. by script `data_processing_crop_images.py` which works as previously described `data_processing.py`, except it creates a new folder called *dataset_cropped*. It contains all cropped images stacked on in one folder. Also `data_paths_cropped.csv` is created with new paths pointing to this folder. Alternatively, user can check right value of ` data_processing_crop_images.py -crop_val` in the *dataset_cropped*. Or by setting it to 0, user can see the whole dataset in one place.
+2. by script `data_processing_crop_images.py` which works as previously described `data_processing.py`, except it creates a new folder called *dataset_cropped*. It contains all cropped images stacked on in one folder. Also `data_paths_cropped.csv` is created with new paths pointing to this folder. Alternatively, user can check right value of ` data_processing_crop_images.py -crop_val` in the *dataset_cropped*. Or by setting it to 0, user can see the whole dataset in one place. As you can see in the following image. The other following image shows the dataset with `--crop_val 80`; it can be seen that such a high grayscale value cuts images to the inner retina.
 
 ![alt text-1](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/cropped.png?raw=true)![alt text-2](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/cropped_80.png?raw=true)
 
@@ -77,26 +77,39 @@ The final product of segmentation algorithm is the image of segmented blood vess
 
 
 ### Training history
+Accuracy and the loss function are different for training and validation datasets. Mainly because it was trained on DRIVE, STARE, and CHASE_DB1 datasets, and this combined dataset does not contain enough data and VGG16 tends to be overfitted. Secondly, two experts produced two different masks for the same retinal image. Hence the ground truth value is not exact further. After detailed analysis, the segmentation algorithm overperformed humans, as it could detect vessels which were not detected by an expert.
+![alt text-1](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/history.png?raw=true)
 
 ### ROC curve
+AUC ROC = 0.9905
+![alt text-1](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/ROC.png?raw=true)
 
 ### Comparable results
 The following images compare masks segmented by experts against the segmentation algorithm with probability value and label value. The motivation for the usage of probability value is twofold:
 1. Dataset contains different masks for one retinal image, i.e. even experts do not produce some ground truth labels
 2. Some small edge veins are hardly visible to the human eye. In our experience, the algorithm can segment these vessels but with a lower probability. The aim is to use this probability of every pixel as a vessel to produce better outcomes, which can be used in computer-aided diagnosis.
 
+![alt text-1](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/Result1.png?raw=true)
+![alt text-1](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/patches.png?raw=true)
+
 For this purpose, the probability slicer was implemented to see the change in the output concerning the given probability. Note, if you run the pipeline, the following image will be displayed, but `plotPredictedImgSlicer` must be run again from *cmd*. It uses `matplotlib.widgets`, which are not in our control. The same holds for the following image `plotHistogramImgSlicer`.
 
-
+![alt text-1](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/Probability_Slicer.png?raw=true)
 
 The results of `plotHistogramImgSlicer`, the user can see the histogram of probabilities for a given image and set the range, which is displayed.
 
+![alt text-1](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/Histogram_Slicer.png?raw=true)
+
 Colorized results in original image after 2 epochs; see next image. In two epochs, with blending and cleaning small unconnected segments, the segmentation algorithm can produce a decent result.
+
+![alt text-1](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/Result_2_iterations.png?raw=true)
 
 The following image shows the final result after some postprocessing:
 - Blending - for blending, the external library  was used, it was slightly modified, and some minor bugs were removed, see  [Smoothly-Blend-Image-Patches](https://github.com/Vooban/Smoothly-Blend-Image-Patches)
 - Probability value - only the probability value higher than 0.8 is displayed, i.e., it displays only the segmented area where the is vessel by higher probability (against label `np.argmax`) by the algorithm
 - Threshold - the segmented areas of size smaller than `img.height * img.width * threshold` is removed from the image. It removes small spots. *Segmentation algorithm has no clue that some vessels must be connected. It just sees a change in the retina image and chooses whether it is a vessel (maybe GANs can help. We will see:))*.
+
+![alt text-1](https://github.com/MartinHasal/RetinaVesselSeg_tf/blob/main/readme_img/Result_threshold.png?raw=true)
 
 
 
