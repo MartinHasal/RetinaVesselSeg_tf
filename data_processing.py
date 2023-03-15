@@ -196,7 +196,7 @@ if __name__ == "__main__":
     #for i in range(10):
     #    plot_fig(df.iloc[i,2])
     
-    plot_orig_mask(df, df.NAME.iloc[10])
+    #plot_orig_mask(df, df.NAME.iloc[10])
     
     
     """ 
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     df = pd.concat([df, df_drive])
     df_drive
     # plot_fig(df.iloc[70,3]), problem to read .gif
-    plot_orig_mask(df, df.NAME.iloc[70])
+    #plot_orig_mask(df, df.NAME.iloc[70])
     
     
     """ 
@@ -301,7 +301,7 @@ if __name__ == "__main__":
         df = pd.concat([df, df_hfr])
     
     # SAVE PATHS
-    plot_orig_mask(df, df.NAME.iloc[110])
+    #plot_orig_mask(df, df.NAME.iloc[110])
     
     print(df.DATASET_NAME.value_counts())
     
