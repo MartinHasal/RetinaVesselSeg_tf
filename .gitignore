@@ -1,6 +1,7 @@
 .idea
 datasets/
 dataset_cropped/
+model/
 *.csv
 results/
 __pycache__
