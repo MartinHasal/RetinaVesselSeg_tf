@@ -65,7 +65,8 @@ if __name__ == '__main__':
     # plot training history
     df_history = pd.DataFrame(history.history)
     plotTrainingHistory(df_history)
-
+    
+    """
     # predict on test data set
     NSAMPLES = 4
     predictDataset(ds_test, nsamples_to_plot=NSAMPLES, nn_model=nn_unet_vgg16)
@@ -124,6 +125,8 @@ if __name__ == '__main__':
     plotListofImages(predictions,
                      clean_threshold = 5e-4,
                      prob_threshold = 0.8)
+    """
+    
     
     """ dev notes 
 
