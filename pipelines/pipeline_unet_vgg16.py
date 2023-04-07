@@ -1,16 +1,19 @@
 import os
 
 import pandas as pd
+from cv2 import imread
+import numpy as np
 
 from pipelines.args import cli_argument_parser
-from funcs.inference import predictDataset, predictImg
+from funcs.inference import predictDataset, predictImg, predictListOfFiles
 from funcs.train import trainSegmentationModel
 from models.unet import UNet
 from procs.adapter import getDatasets
-from utils.plots import plotTrainingHistory, plotColorizedVessels, plotPredictedImg
+from utils.plots import plotTrainingHistory, plotColorizedVessels, plotPredictedImg, clean_image, plotListofImages
 from utils.plots import plotHistogramImgSlicer, plotPredictedImgSlicer
 from utils.timer import elapsed_timer
 from utils.model import save_model
+from utils.smooth_blender_predicitions import predict_img_with_smooth_windowing
 
 
 def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16', trainable_encoder: bool = False):
@@ -22,22 +25,12 @@ def buildModel(input_shape, nclasses: int = 2, encoder_type: str = 'vgg16', trai
     return nn_unet
 
 
-""" dev notes 
-
-ZZZ = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\RetinaVesselSeg_tf\\datasets\\DRIVE\\training\\images\\21_training.tif'
-img = opencv.imread(ZZZ, opencv.IMREAD_COLOR)
-plt.imshow(img)
-predicted_prob, predicted_label = predictImg(nn_unet_vgg16, img)
-plt.imshow(predicted_prob,cmap='gray')
-
-"""
-
 if __name__ == '__main__':
 
     kwargs = cli_argument_parser()
 
     # pipeline running
-
+    
     with elapsed_timer('Creating datasets'):
 
         ds_train, ds_test = getDatasets(
@@ -47,7 +40,8 @@ if __name__ == '__main__':
             ds_test_ratio=kwargs['ds_test_ratio'],
             ds_augmentation_ratio=kwargs['ds_augmentation_ratio'],
             ds_augmentation_ratio_clahe=kwargs['clahe_augmentation_ratio'],
-            ds_augmentation_ops=kwargs['ds_augmentation_ops']
+            ds_augmentation_ops=kwargs['ds_augmentation_ops'],
+            crop_img_val = kwargs['crop_img_val']
         )
 
     with elapsed_timer('Build models'):
@@ -98,3 +92,50 @@ if __name__ == '__main__':
     if OUTPUT_MODEL_PATH is not None:
         with elapsed_timer('Saving model (UNetVGG16)'):
             save_model(nn_unet_vgg16, OUTPUT_MODEL_PATH, OUTPUT_MODEL_NAME)
+    
+    
+    images_Z = list(pd.read_csv(kwargs['db_name'])['PATH_TO_ORIGINAL_IMAGE'][:3].values)
+        
+    predictions_smooth = predict_img_with_smooth_windowing(
+        imread(images_Z[0]),
+        window_size = 128,
+        subdivisions = 2,
+        nb_classes = 2,
+        pred_func = (
+            #lambda img_bath_subdiv: np.argmax (nn_unet_vgg16.predict(img_bath_subdiv), axis = -1) 
+            lambda img_bath_subdiv: nn_unet_vgg16.predict(img_bath_subdiv)
+            #predictImg(nn_unet_vgg16, img)[1]
+            #lambda img: predict(nn_unet_vgg16, img)[1]
+            )
+        )
+        
+    final_prediction = np.argmax(predictions_smooth, axis = 2)
+    final_prediction = (final_prediction*255).astype(np.uint8) # necesarry for opencv
+    # remove small unconected spots in image
+    # percentage defines area img_height*img_width*percentage 
+    # all smaller areas are removed
+    cleaned = clean_image((final_prediction), percentage=5e-4, plot=True)
+    plotColorizedVessels(images_Z[0], predictImg, nn_model=nn_unet_vgg16, blended=cleaned) 
+        
+    predictions = predictListOfFiles(nn_model=nn_unet_vgg16, 
+                                     images_paths=images_Z,
+                                     patch_size=128,
+                                     blending=True)    
+    plotListofImages(predictions,
+                     clean_threshold = 5e-4,
+                     prob_threshold = 0.8)
+    
+    """ dev notes 
+
+    ZZZ = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\RetinaVesselSeg_tf\\datasets\\DRIVE\\training\\images\\21_training.tif'
+    img = cv2.imread(ZZZ, cv2.IMREAD_COLOR)
+    plt.imshow(img)
+    predicted_prob, predicted_label = predictImg(nn_unet_vgg16, img)
+    plt.imshow(predicted_label,cmap='gray')
+    
+    CHILD_PATH = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\images_stack\\007_F_GA31_BW950_PA35_DG111_DG20_PF0_D1_S02_6.jpg'
+    img = cv2.imread(CHILD_PATH, cv2.IMREAD_COLOR)
+    
+    CHILD_PATH = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\images_stack\\018_F_GA35_BW1390_PA37_DG111_DG20_PF0_D1_S01_7.jpg'
+    img = cv2.imread(CHILD_PATH, cv2.IMREAD_COLOR)
+    """

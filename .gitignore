@@ -5,3 +5,5 @@ model/
 *.csv
 results/
 __pycache__
+models/trained
+readme_img/
