@@ -57,7 +57,7 @@ def trainSegmentationModel(nn_model: KerasFunctional,
 
     # set call backs
     early_stopping = KerasCallbacks.EarlyStopping(monitor='val_mean_io_u',
-                                                  patience=10,
+                                                  patience=6,
                                                   restore_best_weights=True,
                                                   mode='max')
                                                   
