@@ -50,7 +50,7 @@ def predictImg(nn_model: KerasFunctional, img: np.ndarray, patch_size: int = 128
     # merge patches
     height, width = img.shape[:2]
     img_labels = np.zeros(shape=img.shape[:2], dtype=np.uint8)
-    img_prob = np.zeros(shape=img.shape[:2], dtype=np.float)
+    img_prob = np.zeros(shape=img.shape[:2], dtype=np.float64)
 
     c = r = 1
     for patch_prob, patch_label in zip(mask_prob, mask_label):
