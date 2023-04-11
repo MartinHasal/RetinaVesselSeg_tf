@@ -34,8 +34,13 @@ class DatasetAugmentation(Enum):
     ROTATION_90 = 16
     ADJUST_CONTRAST = 32
     ADJUST_BRIGHTNESS = 64
+    # all augmentations are used
     ALL = 126
-    ALL_CLAHE_INPLACE = 127
+    """
+    randomly chosen  subset (size of CLAHE_AUGMENTATION_RATIO) of images from training set   
+    is replaced by CLAHE version in original trainig set
+    """
+    ALL_CLAHE_INPLACE = 127 
 
 
 def getImageEqualization_CLAHE(img, clip_limit=2., tile_grid_size=(8, 8)):
