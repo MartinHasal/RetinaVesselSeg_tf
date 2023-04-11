@@ -109,6 +109,30 @@ def plotPredictedImg(fn_img: str, fn_label: str, predictImg, nn_model) -> None:
         maskshow(mask, ax=axes[idx], title=title)
     fig.suptitle('Image {}'.format(fn_img))
     plt.show()
+    
+    
+def plotPredictedImg2x2(fn_img: str, fn_label: str, predictImg, nn_model) -> None:
+
+    img = opencv.imread(fn_img, opencv.IMREAD_COLOR)
+
+    pil_img = Image.open(fn_label)
+    label = np.array(pil_img) / 255; label = label.astype(np.uint8)
+
+    predicted_prob, predicted_label = predictImg(nn_model, img)
+    predicted_prob = convertProbability(predicted_prob, predicted_label)
+
+    mask_titles = ['Mask (true)', 'Mask (pred. probability)', 'Mask (pred. label)']
+    mask_imgs = [label, predicted_prob, predicted_label]
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 3))
+    # plot source image
+    imshow(img, ax=axes[0,0], title='Input image')
+    from itertools import product
+    # plot mask
+    for mask, title, idx in zip(mask_imgs, mask_titles, list(product([0, 1], repeat=2))[1:]):
+        maskshow(mask, ax=axes[idx], title=title)
+    fig.suptitle('Image {}'.format(fn_img))
+    plt.show()
 
     
 def plotPredictedImgSlicer(fn_img: str, fn_label: str, predictImg, nn_model):
