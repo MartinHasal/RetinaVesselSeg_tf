@@ -98,6 +98,10 @@ def predictDataset(ds, nsamples_to_plot: int, nn_model) -> None:
     class_names = ['Background', 'Vessel']
     cm = ConfusionMatrix(ds, y_label, class_names)
     cm.plot(figsize=(4, 4), title_fontsize=14, label_fontsize=12, ticks_fontsize=10, value_size=8)
+    
+    print('ConfusionMatrix')
+    cm_not_normalized = ConfusionMatrix(ds, y_label, class_names, normalize=False)
+    print(cm_not_normalized.get_cm())
 
     # print classification report (label)
     print('Classification report (labels)')
