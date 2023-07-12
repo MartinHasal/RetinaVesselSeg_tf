@@ -439,7 +439,7 @@ class DataAdapter(object):
 
         # invoke garbage collector
         gc.collect()
-
+        print(f'Number of patched images is {len(np_imgs)}')
         return np_imgs, np_masks
 
     def __createDataset(self) -> None:
