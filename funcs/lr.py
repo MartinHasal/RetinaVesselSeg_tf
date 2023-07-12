@@ -17,7 +17,7 @@ def ScheduleWarmupExponentialDecay(nepochs: int, info: bool = False):
             f"Number of epochs should be greater than 7, got: {nepochs}, use exponential decay rather"
     
     LR_START = 0.00001
-    LR_MAX = 0.00002
+    LR_MAX = 0.0002
     LR_MIN = 0.00001
     LR_RAMPUP_EPOCHS = 3
     LR_SUSTAIN_EPOCHS = 1
