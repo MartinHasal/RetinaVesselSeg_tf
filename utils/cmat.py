@@ -34,6 +34,10 @@ class ConfusionMatrix(object):
             self._y_pred,
             normalize='true' if self._cm_normalize else None
         )
+    
+    def get_cm(self):
+        self.__computeConfusionMatrix()
+        return self._cm
 
     def plot(self,
              figsize: tuple = (25, 20),
