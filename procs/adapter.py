@@ -38,9 +38,27 @@ class DatasetAugmentation(Enum):
     ALL = 126
     """
     randomly chosen  subset (size of CLAHE_AUGMENTATION_RATIO) of images from training set   
-    is replaced by CLAHE version in original trainig set
+    is replaced by CLAHE version in original training set
     """
-    ALL_CLAHE_INPLACE = 127 
+    ALL_CLAHE_INPLACE = 127
+
+    # operators
+
+    def __eq__(self, other) -> bool:
+
+        if not isinstance(other, DatasetAugmentation):
+            raise ValueError
+
+        return self.value == other.value
+
+    def __and__(self, other):
+
+        if isinstance(other, int):
+            return DatasetAugmentation(self.value & other)
+        elif isinstance(other, DatasetAugmentation):
+            return DatasetAugmentation(self.value & other.value)
+        else:
+            raise NotImplementedError
 
 
 def getImageEqualization_CLAHE(img, clip_limit=2., tile_grid_size=(8, 8)):
@@ -130,9 +148,11 @@ def read_mask(filename):
     img = img.astype(np.uint8)
 
     return img
-    
+
+
 def crop_image_from_gray(img, tol=7):
-    """ Function removes the black edges from image,
+    """
+        Function removes the black edges from image,
         the exactly the same cut must be done on mask image.
         Why, original images contains too many black areas,
         especially in corners. Function works on cutting of grayscale images.
@@ -140,25 +160,27 @@ def crop_image_from_gray(img, tol=7):
             img : original images
             tol : treshold under which is dark region in grayscale 
                   from boundaries is considered as black
-        """
-    if img.ndim ==2: # check grayscale
+    """
+    # check grayscale
+    if img.ndim == 2:
         keep = img > tol
         img = img[np.ix_(keep.any(1),keep.any(0))]
         return img, keep
     
-    if img.ndim==3:
+    if img.ndim == 3:
         img_gray = opencv.cvtColor(img, opencv.COLOR_RGB2GRAY)
         keep = img_gray > tol
-        check_black = img[:,:,0][np.ix_(keep.any(1),keep.any(0))].shape[0]
-        
-        if (check_black != 0): # image is too dark so that we crop out everything,
-            img1=img[:,:,0][np.ix_(keep.any(1),keep.any(0))]
-            img2=img[:,:,1][np.ix_(keep.any(1),keep.any(0))]
-            img3=img[:,:,2][np.ix_(keep.any(1),keep.any(0))]
-    #         print(img1.shape,img2.shape,img3.shape)
-            img = np.stack([img1,img2,img3],axis=-1)
-            
-    #         print(img.shape)
+        check_black = img[:, :, 0][np.ix_(keep.any(1), keep.any(0))].shape[0]
+
+        # image is too dark so that we crop out everything,
+        if check_black != 0:
+            img1 = img[:, :, 0][np.ix_(keep.any(1), keep.any(0))]
+            img2 = img[:, :, 1][np.ix_(keep.any(1), keep.any(0))]
+            img3 = img[:, :, 2][np.ix_(keep.any(1), keep.any(0))]
+            # print(img1.shape,img2.shape,img3.shape)
+            img = np.stack([img1, img2, img3], axis=-1)
+            # print(img.shape)
+
         return img, keep
 
 
@@ -385,7 +407,7 @@ class DataAdapter(object):
 
         self._df_paths = pd.read_csv(self.fn_csv, index_col=['index'])
 
-    def __loadImages(self, df_img_paths, clahe_augmentation: bool = False, crop_img_val:int = 0) -> (np.ndarray, np.ndarray):
+    def __loadImages(self, df_img_paths, clahe_augmentation: bool = False, crop_img_val: int = 0) -> (np.ndarray, np.ndarray):
 
         col_names = ['PATH_TO_ORIGINAL_IMAGE', 'MASK']
 
@@ -421,10 +443,11 @@ class DataAdapter(object):
             fn_mask = row[col_names[1]]
 
             with elapsed_timer('Patchifying mask {}'.format(fn_mask)):
+
                 mask_img = read_mask(row[col_names[1]])
                 
                 if crop_img_val:
-                    mask_img = mask_img[np.ix_(keep.any(1),keep.any(0))]
+                    mask_img = mask_img[np.ix_(keep.any(1), keep.any(0))]
                    
                 mask_patches = impatchify.getPatches(
                     imgs=[mask_img],
@@ -450,13 +473,16 @@ class DataAdapter(object):
             exit(-1)
 
         try:
-            clahe_augmentation = True if self._augmentation_ops_flg & DatasetAugmentation.CLAHE_EQUALIZATION_INPLACE.value else False
-            crop_img_val = self.crop_img_val if self.crop_img_val else False
+            clahe_augmentation = False
+            if (DatasetAugmentation.CLAHE_EQUALIZATION_INPLACE & self._augmentation_ops_flg) == DatasetAugmentation.CLAHE_EQUALIZATION_INPLACE:
+                clahe_augmentation = True
+
+            crop_img_val = self.crop_img_val if self.crop_img_val else False  # TODO improve
             np_imgs, np_masks = self.__loadImages(self._df_paths, clahe_augmentation=clahe_augmentation, crop_img_val=crop_img_val)
         except IOError:
             exit(-1)
 
-        if self._augmentation_ops_flg & DatasetAugmentation.CLAHE_EQUALIZATION.value:
+        if (DatasetAugmentation.CLAHE_EQUALIZATION & self._augmentation_ops_flg) == DatasetAugmentation.CLAHE_EQUALIZATION:
 
             nsamples = int(self.augmentation_clahe_ratio * len(self._df_paths))
 
@@ -494,23 +520,23 @@ class DataAdapter(object):
             # data set augmentation
             if self._augmentation_ops_flg != DatasetAugmentation.NONE.value:
 
-                if self._augmentation_ops_flg & DatasetAugmentation.FLIP_HORIZONTAL.value:
+                if (DatasetAugmentation.FLIP_HORIZONTAL & self._augmentation_ops_flg) == DatasetAugmentation.FLIP_HORIZONTAL:
                     with elapsed_timer('Training data set augmentation (random horizontal flip)'):
                         ds_train_aug = ds_train_aug.map(getPatchRandomFlip_HORIZONTAL, num_parallel_calls=tf.data.AUTOTUNE)
 
-                if self._augmentation_ops_flg & DatasetAugmentation.FLIP_VERTICAL.value:
+                if (DatasetAugmentation.FLIP_VERTICAL & self._augmentation_ops_flg) == DatasetAugmentation.FLIP_VERTICAL:
                     with elapsed_timer('Training data set augmentation (random vertical flip)'):
                         ds_train_aug = ds_train_aug.map(getPatchRandomFlip_VERTICAL, num_parallel_calls=tf.data.AUTOTUNE)
 
-                if self._augmentation_ops_flg & DatasetAugmentation.ROTATION_90.value:
+                if (DatasetAugmentation.ROTATION_90 & self._augmentation_ops_flg) == DatasetAugmentation.ROTATION_90:
                     with elapsed_timer('Training data set augmentation (random rotation 90)'):
                         ds_train_aug = ds_train_aug.map(getPatchRandomRotate_90, num_parallel_calls=tf.data.AUTOTUNE)
 
-                if self._augmentation_ops_flg & DatasetAugmentation.ADJUST_CONTRAST.value:
+                if (DatasetAugmentation.ADJUST_CONTRAST & self._augmentation_ops_flg) == DatasetAugmentation.ADJUST_CONTRAST:
                     with elapsed_timer('Training data set augmentation (random adjustment contrast)'):
                         ds_train_aug = ds_train_aug.map(getPatchRandomAdjust_CONTRAST, num_parallel_calls=tf.data.AUTOTUNE)
 
-                if self._augmentation_ops_flg & DatasetAugmentation.ADJUST_BRIGHTNESS.value:
+                if (DatasetAugmentation.ADJUST_BRIGHTNESS & self._augmentation_ops_flg) == DatasetAugmentation.ADJUST_BRIGHTNESS:
                     with elapsed_timer('Training data set augmentation (random adjustment brightness)'):
                         ds_train_aug = ds_train_aug.map(getPatchRandomAdjust_BRIGHTNESS, num_parallel_calls=tf.data.AUTOTUNE)
 
@@ -568,14 +594,12 @@ if __name__ == '__main__':
 
     DATABASE_CSV_NAME = 'dataset.csv'
 
-    PATH_SIZE = 64
-    PATH_OVERLAP_RATIO = .0
-
+    PATCH_SIZE = 64
     AUGMENTATION_RATIO = .0
     TEST_RATIO = .1
 
     da = DataAdapter(fn_csv=DATABASE_CSV_NAME,
-                     patch_size=PATH_SIZE,
+                     patch_size=PATCH_SIZE,
                      test_ratio=TEST_RATIO,
                      augmentation_ratio=AUGMENTATION_RATIO)
 

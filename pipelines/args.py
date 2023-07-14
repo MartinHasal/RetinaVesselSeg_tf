@@ -66,6 +66,7 @@ def process_augmentation_ops(ds_augmentation_ops) -> list:
 
     return lst_ops
 
+
 class Range(object):
 
     def __init__(self, start, end):
@@ -77,6 +78,7 @@ class Range(object):
         
     def __repr__(self):
         return '{0} - {1}'.format(self.start, self.end)
+
 
 def cli_argument_parser() -> dict:
 
@@ -170,11 +172,10 @@ def cli_argument_parser() -> dict:
                         default=False,
                         required=False)
                         
-    parser.add_argument('--crop_val', required=False, type=int, choices=range(0,256),
+    parser.add_argument('--crop_val', required=False, type=int, choices=range(0, 256),
                         metavar="[0-255]", 
                         help='Threshold (0-255) denoting at what treshold of grayscale  \
                         the black edges from images are croppped. Default is 0 - no crop', default=0)   
-    
 
     args = parser.parse_args()
     lst_ops = process_augmentation_ops(args.ds_augmentation_ops) if args.ds_augmentation_ops is not None else [DatasetAugmentation.NONE]
