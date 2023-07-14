@@ -78,7 +78,14 @@ def predictImg(nn_model: KerasFunctional, img: np.ndarray, patch_size: int = 128
     return img_prob, img_labels
 
 
-def predictDataset(ds, nsamples_to_plot: int, nn_model) -> None:
+def predictDataset(ds,
+                   nsamples_to_plot: int,
+                   nn_model,
+                   report_plot_aucroc: bool = True,
+                   report_plot_cmat: bool = True,
+                   report_print: bool = True) -> None:
+
+    from models.utils import report
 
     y_prob, y_label = predict(nn_model, ds)
 
@@ -95,26 +102,14 @@ def predictDataset(ds, nsamples_to_plot: int, nn_model) -> None:
     # get ground true
     y_true = np.concatenate([y for _, y in ds], axis=0).reshape(-1).astype(np.float32)
 
-    class_names = ['Background', 'Vessel']
-    cm = ConfusionMatrix(ds, y_label, class_names)
-    cm.plot(figsize=(4, 4), title_fontsize=14, label_fontsize=12, ticks_fontsize=10, value_size=8)
-    
-    print('ConfusionMatrix')
-    cm_not_normalized = ConfusionMatrix(ds, y_label, class_names, normalize=False)
-    print(cm_not_normalized.get_cm())
+    report.show_report(
+        test=y_true,
+        labels_pred=y_label,
+        with_aucroc=True,
+        with_cmat=True,
+        with_report=True
+    )
 
-    # print classification report (label)
-    print('Classification report (labels)')
-    print(classification_report_imbalanced(y_true, y_label.reshape(-1)))
-
-    # plot auc roc curve
-    auc_roc = AucRoc(y_true=y_true, y_pred=y_prob)
-    auc_roc.plot()
-    plt.show()
-
-    #
-    print('auc roc = {0:.4f}'.format(auc_roc.auc))
-    
 
 """ 
 # generally default serving function is prepared for 
