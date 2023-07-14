@@ -172,13 +172,17 @@ def cli_argument_parser() -> dict:
                         default=False,
                         required=False)
                         
-    parser.add_argument('--crop_val', required=False, type=int, choices=range(0, 256),
-                        metavar="[0-255]", 
-                        help='Threshold (0-255) denoting at what treshold of grayscale  \
-                        the black edges from images are croppped. Default is 0 - no crop', default=0)   
+    parser.add_argument('--crop_threshold',
+                        metavar="[0-255]",
+                        help='Threshold taken from range (0-255) denotes at what grayscale threshold level \
+                        the margins from images are being cropped. Default is -1 (no crop).',
+                        type=int,
+                        choices=range(-1, 256),
+                        default=-1,
+                        required=False)
 
     args = parser.parse_args()
-    lst_ops = process_augmentation_ops(args.ds_augmentation_ops) if args.ds_augmentation_ops is not None else [DatasetAugmentation.NONE]
+    lst_ops = process_augmentation_ops(args.ds_augmentation_ops) if args.ds_augmentation_ops is not None else (DatasetAugmentation.NONE,)
 
     kwargs = {
         'db_name': args.db_csv,
@@ -195,7 +199,7 @@ def cli_argument_parser() -> dict:
         'clahe_augmentation_ratio': args.clahe_augmentation_ratio,
         'ds_augmentation_ops': lst_ops,
         'trainable_encoder': args.model_trainable_encoder,
-        'crop_img_val':args.crop_val
+        'crop_threshold': args.crop_threshold
     }
 
     return kwargs

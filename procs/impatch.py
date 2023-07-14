@@ -112,8 +112,6 @@ if __name__ == '__main__':
 
     from PIL import Image
     from utils.plots import imshow as imshow, maskshow
-    
-
 
     DATA_DIR = 'datasets/DRIVE/training/'
     IMG_NAME = '21_training'

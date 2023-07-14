@@ -41,7 +41,7 @@ if __name__ == '__main__':
             ds_augmentation_ratio=kwargs['ds_augmentation_ratio'],
             ds_augmentation_ratio_clahe=kwargs['clahe_augmentation_ratio'],
             ds_augmentation_ops=kwargs['ds_augmentation_ops'],
-            crop_img_val = kwargs['crop_img_val']
+            crop_threshold=kwargs['crop_threshold']
         )
 
     with elapsed_timer('Build models'):
@@ -92,25 +92,24 @@ if __name__ == '__main__':
     if OUTPUT_MODEL_PATH is not None:
         with elapsed_timer('Saving model (UNetVGG16)'):
             save_model(nn_unet_vgg16, OUTPUT_MODEL_PATH, OUTPUT_MODEL_NAME)
-    
-    
+
     images_Z = list(pd.read_csv(kwargs['db_name'])['PATH_TO_ORIGINAL_IMAGE'][:3].values)
         
     predictions_smooth = predict_img_with_smooth_windowing(
         imread(images_Z[0]),
-        window_size = 128,
-        subdivisions = 2,
-        nb_classes = 2,
-        pred_func = (
-            #lambda img_bath_subdiv: np.argmax (nn_unet_vgg16.predict(img_bath_subdiv), axis = -1) 
+        window_size=128,
+        subdivisions=2,
+        nb_classes=2,
+        pred_func=(
+            # lambda img_bath_subdiv: np.argmax (nn_unet_vgg16.predict(img_bath_subdiv), axis = -1)
             lambda img_bath_subdiv: nn_unet_vgg16.predict(img_bath_subdiv)
-            #predictImg(nn_unet_vgg16, img)[1]
-            #lambda img: predict(nn_unet_vgg16, img)[1]
+            # predictImg(nn_unet_vgg16, img)[1]
+            # lambda img: predict(nn_unet_vgg16, img)[1]
             )
         )
         
-    final_prediction = np.argmax(predictions_smooth, axis = 2)
-    final_prediction = (final_prediction*255).astype(np.uint8) # necesarry for opencv
+    final_prediction = np.argmax(predictions_smooth, axis=2)
+    final_prediction = (final_prediction*255).astype(np.uint8)  # necesarry for opencv
     # remove small unconected spots in image
     # percentage defines area img_height*img_width*percentage 
     # all smaller areas are removed
@@ -122,8 +121,8 @@ if __name__ == '__main__':
                                      patch_size=128,
                                      blending=True)    
     plotListofImages(predictions,
-                     clean_threshold = 5e-4,
-                     prob_threshold = 0.8)
+                     clean_threshold=5e-4,
+                     prob_threshold=0.8)
     
     """ dev notes 
 
