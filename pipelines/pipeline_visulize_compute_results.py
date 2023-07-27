@@ -131,12 +131,14 @@ blending_cleaning(child_path, cleaning=5e-2, probt=0.95)
 child_path = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\RetCamImageProcs\\obr_test\\image-002.jpg'
 
 
+
+article_path = 'D:\\Dropbox (ARG@CS.FEI.VSB)\\Dataset - retiny\\images_from_doctor\\ML\\SEGMENTATION\\RetinaVesselSeg_tf\\datasets\\CHASEDB1\\Image_09R.jpg'
 # plot predicting images
 plotPredictedImg(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
-plotPredictedImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
+#plotPredictedImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
 
 plotColorizedVessels(path_tst_img, predictImg, nn_model=nn_unet_vgg16)
-plotHistogramImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
+#plotHistogramImgSlicer(path_tst_img, path_tst_label, predictImg, nn_model=nn_unet_vgg16)
 
 # Edges 
 
@@ -147,8 +149,11 @@ img_prob, img_labels = predictImg(nn_unet_vgg16, img)
 
 
 def visualize_numpy_array(arr):
-    fig = plt.figure()
-    plt.imshow(arr)
+    fig = plt.figure(figsize=(8, 6))  # Increase the size of the figure
+    plt.imshow(arr, cmap='gray')     # Display the numpy array in grayscale
+    plt.colorbar()                   # Add a colorbar
+    plt.xticks(fontsize=12)          # Increase the size of x-axis labels
+    plt.yticks(fontsize=12)          # Increase the size of y-axis labels
     plt.show()
     
 visualize_numpy_array(img_prob)
@@ -172,7 +177,7 @@ visualize_numpy_array(predictions_smooth[:,:,0])
 visualize_numpy_array(predictions_smooth[:,:,1])
 
 pokus = np.abs ( predictions_smooth[:,:,0] - predictions_smooth[:,:,1] )
-visualize_numpy_array(pokus)
+visualize_numpy_array(1-pokus)
 
 threshold = 0.5
 pokus_thr = np.where(pokus > threshold, 0, 1)
@@ -191,6 +196,43 @@ img_small = np.expand_dims(img_small, axis=0)
 pred_prob = nn_unet_vgg16.predict(img_small)
 visualize_numpy_array(pred_prob[0,:,:,0])
 visualize_numpy_array(pred_prob[0,:,:,1])
+
+
+
+
+# visualize results in 3x1 (background, vessels, edges) for article
+
+def plot_images_with_colorbar(images, titles=None, cmap='gray', figsize=(15, 5)):
+    from mpl_toolkits.axes_grid1 import ImageGrid
+    
+    fig = plt.figure(figsize=(9.75, 3))
+
+    grid = ImageGrid(fig, 111,          # as in plt.subplot(111)
+                     nrows_ncols=(1,3),
+                     axes_pad=0.15,
+                     share_all=True,
+                     cbar_location="right",
+                     cbar_mode="single",
+                     cbar_size="7%",
+                     cbar_pad=0.15,
+                     )
+    
+    for i, ax in enumerate(grid):        
+        if titles:
+            ax.set_title(titles[i], fontsize=12)
+        im = ax.imshow(images[i], vmin=0, vmax=1, cmap=cmap)
+    
+    # Colorbar
+    ax.cax.colorbar(im)
+    ax.cax.toggle_label(True)
+    plt.show()
+
+
+plot_images_with_colorbar([predictions_smooth[:,:,0], predictions_smooth[:,:,1], pokus], 
+                          titles=['Prediction background', 'Prediction vessel', 'Abs. difference'])
+
+
+
 
 
 """ 
