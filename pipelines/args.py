@@ -7,6 +7,17 @@ from funcs.losses import LossType
 from funcs.lr import LearningRateDecayType
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('true', '1'):
+        return True
+    elif v.lower() in ('false', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 class _DatasetAugmentationOps_Helper(Enum):
 
     NONE = 'none'
@@ -170,6 +181,9 @@ def cli_argument_parser() -> dict:
     parser.add_argument('--model_trainable_encoder',
                         metavar='True or False',
                         default=False,
+                        type=str2bool,
+                        nargs='?',
+                        const=True,
                         required=False)
                         
     parser.add_argument('--crop_threshold',
